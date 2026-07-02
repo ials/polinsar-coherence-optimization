@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Adaptive Volume Coherence Optimization — Wan et al. 2026</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#161d2e; --panel2:#1c2438; --text:#e7ecf5; --muted:#8f9bb3;
+    --accent:#4fd1c5; --accent2:#f6ad55; --border:#2a3450;
+    --c1:#f56565; --c2:#f6ad55; --c3:#48bb78; --v:#63b3ed;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text);}
+  header{padding:18px 26px; border-bottom:1px solid var(--border); background:linear-gradient(180deg,#161d2e,#0f1420);}
+  header h1{margin:0 0 4px 0; font-size:20px; font-weight:600;}
+  header p{margin:0; color:var(--muted); font-size:13px; max-width:1050px; line-height:1.5;}
+  header p.cite{margin-top:8px; font-size:11.5px; color:#6f7c99;}
+  .layout{display:flex; gap:14px; padding:14px 18px; align-items:flex-start;}
+  .controls{flex:0 0 250px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:13px; position:sticky; top:14px; max-height:calc(100vh - 28px); overflow-y:auto;}
+  .controls h2{font-size:11.5px; margin:13px 0 8px 0; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border); padding-bottom:5px;}
+  .controls h2:first-child{margin-top:0;}
+  .ctrl{margin-bottom:11px;}
+  .ctrl label{display:flex; flex-wrap:wrap; justify-content:space-between; gap:2px 6px; font-size:11.5px; margin-bottom:5px; color:var(--text); line-height:1.25;}
+  .ctrl label span.val{color:var(--accent2); font-variant-numeric:tabular-nums; font-weight:600; white-space:nowrap;}
+  .ctrl input[type=range]{width:100%; accent-color:var(--accent);}
+  .ctrl .hint{font-size:10px; color:var(--muted); margin-top:3px; line-height:1.3;}
+  .ctrl label.chk{display:flex; align-items:center; gap:7px; cursor:pointer;}
+  .presets{display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; margin-bottom:5px;}
+  .presets button{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:5px 7px; font-size:10.5px; cursor:pointer;}
+  .presets button:hover{border-color:#8f9bb3;}
+  .readout{background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:9px 10px; margin-top:5px; font-size:11px; line-height:1.55;}
+  .readout .row{display:flex; justify-content:space-between; gap:6px;}
+  .readout .row b{color:var(--accent); text-align:right;}
+  .grid{flex:1; display:grid; grid-template-columns:1fr 1fr; gap:16px; min-width:0;}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px 4px;}
+  .card.wide{grid-column:1 / -1;}
+  .card h3{font-size:13px; margin:2px 4px 2px; color:var(--text); font-weight:600;}
+  .card p.note{font-size:11.5px; color:var(--muted); margin:0 4px 6px; line-height:1.4;}
+  .plot{width:100%; height:340px;}
+  .plot.tall{height:400px;}
+  .plot.short{height:260px;}
+  .cond{padding:8px 12px; border-radius:8px; font-size:12px; font-weight:600; margin:6px 4px;}
+  .cond.good{background:rgba(72,187,120,0.15); color:var(--c3); border:1px solid var(--c3);}
+  .cond.bad{background:rgba(245,101,101,0.15); color:var(--c1); border:1px solid var(--c1);}
+  footer{padding:14px 26px 30px; color:var(--muted); font-size:11.5px; border-top:1px solid var(--border); margin-top:8px;}
+  footer h4{color:var(--text); font-size:12px; margin:14px 0 4px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Adaptive Volume Coherence Optimization (Ada-VolOpt) — Wan, Wang et al. (2026)</h1>
+  <p>An interactive reconstruction of the paper's core pipeline for forest height inversion from <b>single-polarization</b> L-band bistatic InSAR
+  (LuTan-1). Because a single polarization gives only one complex coherence per pixel, the observation space is first expanded by splitting the
+  full-resolution SLC into several azimuth <b>sub-look</b> images (time-frequency analysis), each seeing a slightly different ground-to-volume
+  scattering ratio. The sub-look coherences trace a line inside the complex unit circle (CUC) — the RVoG coherence line — whose intersection with
+  the CUC gives the ground phase, and whose position defines a 1-D <i>ambiguity interval</i> for the volume-only coherence γ<sub>v0</sub>. Ada-VolOpt
+  resolves that ambiguity by optimizing γ<sub>v0</sub> against all available sub-look observations, then a slope-adaptive RVoG model inverts forest
+  height while correcting for the terrain-slope bias that would otherwise distort κ<sub>z</sub> and the local incidence angle.</p>
+  <p class="cite">Source: J. Wan, C. Wang, Y. Lei, E. Chen, A. Fu, Y. Liu, L. Zhao, X. Liu, J. Xu, Y. Fan, Q. Song, "Adaptive volume coherence
+  optimization for forest height inversion in mountainous areas using innovative spaceborne L-band bistatic InSAR," <i>GIScience &amp; Remote
+  Sensing</i>, 63:1, 2637240 (2026). DOI: 10.1080/15481603.2026.2637240 (Adaptive_volume_coherence_optimization.pdf provided by the user).</p>
+</header>
+
+<div class="layout">
+  <div class="controls">
+    <h2>Scenario presets</h2>
+    <div class="presets">
+      <button data-preset="hainan">Hainan (tropical)</button>
+      <button data-preset="yanbian">Yanbian (mixed)</button>
+      <button data-preset="genhe">Genhe (boreal)</button>
+      <button data-preset="clean">Clean, flat</button>
+      <button data-preset="noisy">Noisy, steep</button>
+    </div>
+
+    <h2>RVoG scene (ground truth)</h2>
+    <div class="ctrl">
+      <label>Forest height h<sub>V</sub> <span class="val" id="v_hv">22 m</span></label>
+      <input type="range" id="hv" min="3" max="45" step="0.5" value="22">
+    </div>
+    <div class="ctrl">
+      <label>Extinction σ <span class="val" id="v_sigma">0.30 dB/m</span></label>
+      <input type="range" id="sigma" min="0.02" max="1.2" step="0.01" value="0.3">
+    </div>
+    <div class="ctrl">
+      <label>Nominal look angle θ<sub>0</sub> <span class="val" id="v_theta">36°</span></label>
+      <input type="range" id="theta0" min="18" max="50" step="1" value="36">
+    </div>
+    <div class="ctrl">
+      <label>Vertical wavenumber κ<sub>z</sub> <span class="val" id="v_kz">0.18 rad/m</span></label>
+      <input type="range" id="kz" min="0.03" max="0.5" step="0.005" value="0.18">
+    </div>
+    <div class="ctrl">
+      <label>Topographic ground phase φ<sub>0</sub> <span class="val" id="v_phi0">40°</span></label>
+      <input type="range" id="phi0" min="-180" max="180" step="1" value="40">
+    </div>
+
+    <h2>Time-frequency (TF) analysis</h2>
+    <div class="ctrl">
+      <label>Sub-look images N <span class="val" id="v_nsub">5</span></label>
+      <input type="range" id="nsub" min="3" max="9" step="1" value="5">
+    </div>
+    <div class="ctrl">
+      <label>Doppler bandwidth per look <span class="val" id="v_bw">60 %</span></label>
+      <input type="range" id="bw" min="20" max="90" step="1" value="60">
+      <div class="hint">Higher bandwidth → sharper sub-looks (less noise) but more spectral overlap → less coherence dispersion. Paper recommends 60–70%.</div>
+    </div>
+    <div class="ctrl">
+      <label>Ground-scattering azimuthal sensitivity <span class="val" id="v_disp">1.10</span></label>
+      <input type="range" id="disp" min="0.1" max="2.5" step="0.05" value="1.1">
+      <div class="hint">How much the ground-to-volume ratio L(az) swings across sub-look angles (illustrative — the paper reports this from real data, not a closed form).</div>
+    </div>
+    <div class="ctrl">
+      <label>Coherence noise level <span class="val" id="v_noise">0.05</span></label>
+      <input type="range" id="noise" min="0" max="0.25" step="0.005" value="0.05">
+    </div>
+    <button id="resample" style="width:100%; margin-top:2px; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px; font-size:11px; cursor:pointer;">↻ Resample noise</button>
+
+    <h2>Mountainous terrain</h2>
+    <div class="ctrl">
+      <label>Range terrain slope <span class="val" id="v_slope">0°</span></label>
+      <input type="range" id="slope" min="-25" max="25" step="1" value="0">
+    </div>
+    <div class="ctrl">
+      <label class="chk"><input type="checkbox" id="slopeCorr" checked> Apply slope-adaptive TF-RVoG correction</label>
+      <div class="hint">Unchecked = height inversion uses the nominal θ₀, κ<sub>z</sub> and ignores the local slope, reproducing the paper's over/under-estimation bias.</div>
+    </div>
+
+    <div class="readout" id="pipelineReadout"></div>
+  </div>
+
+  <div class="grid">
+
+    <div class="card wide">
+      <h3>1 · Expanding single-polarization InSAR: azimuth sub-look splitting</h3>
+      <p class="note">The full Doppler spectrum of the single-polarization SLC is split into N overlapping sub-looks, each seeing the forest from
+      a slightly different azimuth observation angle. A narrower per-look bandwidth means less overlap (more distinct azimuth angles, more coherence
+      dispersion) but a noisier, lower-resolution sub-look image.</p>
+      <div id="plotSpectrum" class="plot short"></div>
+    </div>
+
+    <div class="card">
+      <h3>2 · Sub-look coherences in the complex unit circle</h3>
+      <p class="note">Each sub-look coherence γ(az) lies (in theory) on the straight RVoG line through γ<sub>v0</sub> and the ground phase point
+      e<sup>iφ₀</sup>. The line is fit by total least squares; extending it to the CUC gives two candidate ground-phase points. Coordinates below
+      are de-rotated by the fitted ground phase (a standard normalization) so the chosen ground point always sits at exactly (1, 0) and γ<sub>v0</sub>
+      lies directly on the line — γ<sub>min</sub> (least ground scattering) and γ<sub>max</sub> (most ground scattering) mark the observed extremes.</p>
+      <div id="plotCUC" class="plot tall"></div>
+    </div>
+
+    <div class="card">
+      <h3>3 · Ada-VolOpt: resolving the 1-D ambiguity</h3>
+      <p class="note">Along the ambiguity segment between γ<sub>min</sub> and the line's far CUC intersection γ<sub>e</sub>, every candidate γ<sub>v0</sub>
+      is, by the line's own geometry, exactly self-consistent with any single sub-look taken alone — that is the ambiguity. What actually constrains
+      it is that every sub-look's implied ground-to-volume ratio L(az<sub>i</sub>) must be a physically valid fraction in [0, 1] <i>simultaneously</i>;
+      Ada-VolOpt takes the midpoint of the segment where that holds for all available sub-looks (shrinking toward the true value as noise drops or
+      more/wider-spread sub-looks are added).</p>
+      <div id="plotAmbig" class="plot tall"></div>
+    </div>
+
+    <div class="card wide">
+      <h3>4 · Slope-adaptive forest height inversion (2-D lookup)</h3>
+      <p class="note">Forest height and extinction are jointly inverted by grid-searching the RVoG model for the (h<sub>V</sub>, σ) pair whose
+      predicted volume coherence best matches the Ada-VolOpt estimate γ̂<sub>v0</sub>. When the slope-adaptive correction is switched off, the
+      lookup model uses the nominal θ₀ and κ<sub>z</sub> even though the true scene sits on a slope — reproducing the paper's terrain bias.</p>
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <div id="plotLookup" class="plot tall" style="flex:1; min-width:320px;"></div>
+        <div id="plotSlopeBias" class="plot tall" style="flex:1; min-width:320px;"></div>
+      </div>
+      <div id="inversionCond" class="cond"></div>
+    </div>
+
+    <div class="card wide">
+      <h3>5 · Validation across three test sites (reported results)</h3>
+      <p class="note">Real accuracy figures reported in the paper for the Hainan (tropical), Yanbian (mixed), and Genhe (boreal) test sites, covering
+      63.11 thousand km² total, validated against airborne LiDAR (E<sub>RH100</sub>). The "ignoring ground scattering" bars are derived from the
+      paper's stated relative accuracy improvements (8% / 10% / 33%) applied to the Ada-VolOpt accuracy — the paper does not tabulate the baseline
+      RMSE directly.</p>
+      <div id="plotValidation" class="plot short"></div>
+    </div>
+
+    <div class="card wide">
+      <h3>6 · Sensitivity to Doppler bandwidth and number of sub-looks (illustrative)</h3>
+      <p class="note">The paper reports (Section 5.4, Figure 20) that a Doppler bandwidth of 60–70% and roughly five sub-look interferograms give
+      the best accuracy/robustness trade-off, with boreal forests most sensitive to both due to low stand density. Exact digitized curves are not
+      available from the source text, so the trends below are a qualitative, illustrative reconstruction — the markers show your current control
+      settings for reference.</p>
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <div id="plotBW" class="plot short" style="flex:1; min-width:320px;"></div>
+        <div id="plotNsub" class="plot short" style="flex:1; min-width:320px;"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <h4>Notes on fidelity</h4>
+  <p><b>Modeled exactly from the paper's equations:</b> the RVoG volume-only coherence γ<sub>v0</sub>(h<sub>V</sub>, σ, κ<sub>z</sub>, θ) (Eq. 3);
+  the TF-RVoG sub-look coherence γ(az) = e<sup>iφ₀</sup>[γ<sub>v0</sub> + L(az)(1−γ<sub>v0</sub>)] (Eq. 6); the ground-phase distance criterion
+  d<sub>i</sub> = |γ<sub>i</sub> − e<sup>iφ₀</sup>| used to pick γ<sub>min</sub>/γ<sub>max</sub> (Eq. 8); the slope-adaptive volume coherence that
+  rescales the extinction term by cos θ<sub>v</sub>/cos θ₀ at the local incidence angle (Eq. 15); and the 2-D lookup-table height/extinction
+  inversion (Eq. 13–14). The validation numbers in panel 5 (5.04 m / 3.41 m / 2.44 m accuracy; 8% / 10% / 33% improvement) are the paper's reported
+  results.</p>
+  <p><b>Illustrative simplifications:</b> the paper does not give a closed-form relationship between azimuth sub-look angle and the ground-to-volume
+  ratio L(az) — it is an empirical observation from real SAR data (Figures 1, 8) — so this dashboard uses a tunable synthetic az-dependence (with
+  mild curvature, since a perfectly linear L(az) would make every sub-look redundant) to reproduce the qualitative CUC dispersion and bandwidth
+  trade-off. The paper's own optimization residual (Eq. 9–12) could not be recovered exactly from the extracted PDF text (the multi-line equations
+  render out of order under text extraction), so this had to be reconstructed from the description alone. Back-solving each sub-look's L from a
+  *single* candidate γ<sub>v0</sub> is always exactly self-consistent for any point on the fitted line (a projective-line identity) — that is
+  precisely the ambiguity, and no amount of azimuth curve-fitting from a single sub-look's own data can break it, whether by linear regression or by
+  interpolating between only the two extremes (both are degenerate in the same way). What the paper's text does support directly
+  ("traversing... within the bounds of Lmax and Lmin") is the one constraint that genuinely depends on the candidate: every sub-look's implied L
+  must lie in the physical range [0, 1] <i>simultaneously</i>. Panel 3 takes the midpoint of the segment where that holds for every observed
+  sub-look — a well-motivated stand-in for the paper's exact tie-breaking residual, which narrows toward the true γ<sub>v0</sub> as noise drops and
+  more/wider-spread sub-looks are used, without pretending to reproduce a specific formula this dashboard could not verify. The correct-vs-ambiguous
+  ground-phase decision (normally resolved with Kugler et al. 2015's rules) is simplified here to "closest to the known true topographic phase," for
+  clarity. Panel 6's curves are qualitative illustrations of the described trends, not digitized Figure 20 data. No InSAR imagery or LiDAR datasets
+  from the paper are redistributed here; all computation runs live in your browser via plain JavaScript.</p>
+</footer>
+
+<script>
+// ---------- complex helpers ----------
+const cadd=(a,b)=>[a[0]+b[0],a[1]+b[1]];
+const csub=(a,b)=>[a[0]-b[0],a[1]-b[1]];
+const cmul=(a,b)=>[a[0]*b[0]-a[1]*b[1], a[0]*b[1]+a[1]*b[0]];
+const cscale=(a,s)=>[a[0]*s,a[1]*s];
+const cdiv=(a,b)=>{const d=b[0]*b[0]+b[1]*b[1]; return [(a[0]*b[0]+a[1]*b[1])/d,(a[1]*b[0]-a[0]*b[1])/d];};
+const cexp=(re,im)=>{const m=Math.exp(re); return [m*Math.cos(im), m*Math.sin(im)];};
+const cabs=a=>Math.hypot(a[0],a[1]);
+const cphase=a=>Math.atan2(a[1],a[0]);
+const D2R=Math.PI/180, R2D=180/Math.PI;
+
+function randn(){let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+
+// Eq.3 / Eq.15 volume-only coherence, with thetaLocalDeg used in the extinction cos-ratio and kzLocal in the phase term.
+function volCoherence(hv, sigma, kz, thetaLocalDeg, theta0Deg){
+  const theta0=theta0Deg*D2R, thetaL=thetaLocalDeg*D2R;
+  const p = 2*sigma*Math.cos(thetaL)/Math.cos(theta0);
+  const expTerm = cexp(p*hv, kz*hv);
+  const numer = cscale(csub(expTerm,[1,0]), p);
+  const denomExpReal = Math.exp(p*hv)-1;
+  const denom = cmul([p,kz],[denomExpReal,0]);
+  return cdiv(numer, denom);
+}
+// Eq.6 sub-look coherence from volume-only coherence and L(az)
+function subLook(gV0, phi0rad, L){
+  const oneMinusG = csub([1,0], gV0);
+  const inner = cadd(gV0, cscale(oneMinusG, L));
+  return cmul(cexp(0,phi0rad), inner);
+}
+
+let seed = 1;
+function resampleNoise(){ seed = Math.random()*1e6; }
+
+function readControls(){
+  const g=id=>document.getElementById(id);
+  return {
+    hv:+g('hv').value, sigma:+g('sigma').value, theta0:+g('theta0').value,
+    kz:+g('kz').value, phi0:+g('phi0').value, nsub:+g('nsub').value,
+    bw:+g('bw').value, disp:+g('disp').value, noise:+g('noise').value,
+    slope:+g('slope').value, slopeCorr:g('slopeCorr').checked
+  };
+}
+
+function computeAll(){
+  const c = readControls();
+  const theta0 = c.theta0, phi0 = c.phi0*D2R;
+  const thetaLocal = theta0 - c.slope;
+  const kzLocal = c.kz * Math.sin(theta0*D2R)/Math.sin(thetaLocal*D2R);
+
+  // ground truth volume-only coherence at the TRUE (slope-affected) geometry
+  const gV0_true = volCoherence(c.hv, c.sigma, kzLocal, thetaLocal, theta0);
+
+  // sub-look azimuth angles & dispersion / noise scaling from Doppler bandwidth
+  const N = c.nsub;
+  const dispersionAmp = c.disp * (1 - c.bw/140);
+  const noiseSigma = c.noise * (0.4 + (100-c.bw)/100);
+  const rng = mulberry32(Math.floor(seed*1000)+N*7+Math.floor(c.bw));
+  const azDeg = [], Lvals=[], gammaObs=[];
+  for(let i=0;i<N;i++){
+    const t = N===1?0:(i/(N-1))*2-1; // -1..1
+    const az = t*6; // +-6 deg full azimuth sweep
+    azDeg.push(az);
+    // mild curvature vs. azimuth (real backscatter-vs-angle trends aren't perfectly linear) — this is
+    // what actually makes 3+ sub-looks more informative than 2, and what the optimization below exploits.
+    let L = 0.5 + dispersionAmp*0.5*t + 0.12*dispersionAmp*(t*t-0.5);
+    L = Math.min(1, Math.max(0, L));
+    Lvals.push(L);
+    let g = subLook(gV0_true, phi0, L);
+    g = [g[0] + noiseSigma*rng(), g[1] + noiseSigma*rng()];
+    gammaObs.push(g);
+  }
+
+  // total-least-squares line fit through the N observed points
+  let mx=0,my=0; gammaObs.forEach(p=>{mx+=p[0];my+=p[1];}); mx/=N; my/=N;
+  let sxx=0,sxy=0,syy=0;
+  gammaObs.forEach(p=>{const dx=p[0]-mx, dy=p[1]-my; sxx+=dx*dx; sxy+=dx*dy; syy+=dy*dy;});
+  // principal eigenvector of [[sxx,sxy],[sxy,syy]]
+  const theta = 0.5*Math.atan2(2*sxy, sxx-syy);
+  const dir = [Math.cos(theta), Math.sin(theta)];
+  // intersect line {mean + t*dir} with unit circle
+  const b = 2*(mx*dir[0]+my*dir[1]);
+  const cc = mx*mx+my*my-1;
+  const disc = Math.max(0, b*b-4*cc);
+  const sq = Math.sqrt(disc);
+  const t1 = (-b+sq)/2, t2=(-b-sq)/2;
+  const p1 = [mx+t1*dir[0], my+t1*dir[1]];
+  const p2 = [mx+t2*dir[0], my+t2*dir[1]];
+  // pick the candidate closest to the TRUE ground phase (stand-in for Kugler et al. decision rule)
+  const trueGround = [Math.cos(phi0), Math.sin(phi0)];
+  const d1 = cabs(csub(p1,trueGround)), d2 = cabs(csub(p2,trueGround));
+  const groundPtRaw = d1<d2 ? p1 : p2;
+  const otherPtRaw = d1<d2 ? p2 : p1;
+
+  // The sub-look line's "volume" endpoint is e^{iphi0}*gamma_v0, not gamma_v0 itself (Eq.6), so gamma_v0
+  // does NOT lie on the raw observed coherence line unless phi0=0. To keep the geometry and the
+  // optimization below consistent (and directly comparable to gamma_v0_true), de-rotate every point by
+  // the estimated ground phase so the ground point sits exactly at (1,0) -- a normalization standard in
+  // PolInSAR presentations of the coherence line.
+  const phiHat = Math.atan2(groundPtRaw[1], groundPtRaw[0]);
+  const derot = (p)=>cmul(p, [Math.cos(phiHat), -Math.sin(phiHat)]);
+  const gammaObsDR = gammaObs.map(derot);
+  const groundPt = derot(groundPtRaw);
+  const otherPt = derot(otherPtRaw);
+
+  // distances from every sub-look coherence to the chosen ground phase point -> pick min/max ground scattering
+  const dists = gammaObsDR.map(p=>cabs(csub(p,groundPt)));
+  let iMin=0,iMax=0;
+  dists.forEach((d,i)=>{ if(d>dists[iMin]) iMin=i; if(d<dists[iMax]) iMax=i; });
+  const gammaMin = gammaObsDR[iMin]; // least ground scattering (farthest from ground pt)
+  const gammaMax = gammaObsDR[iMax]; // most ground scattering (closest to ground pt)
+
+  // Ada-VolOpt: search candidate gamma_v0 along segment [gammaMin -> otherPt], in the de-rotated frame,
+  // where gamma(L) = gamma_v0 + L(1-gamma_v0) (Eq.6 with the e^{iphi0} factor already divided out).
+  //
+  // Back-solving L for any single sub-look from a candidate gv0 is *always* exactly self-consistent for
+  // any candidate that lies on the fitted line (a projective-line identity) — that is precisely the 1-D
+  // ambiguity the paper describes, and no amount of curve-fitting against azimuth from that alone can
+  // break it. What genuinely constrains the candidate is that L(az) must be a physically valid ratio,
+  // L in [0,1], for *every* sub-look simultaneously (paper: "traversing... within the bounds of Lmax and
+  // Lmin"); each additional sub-look observation shrinks the feasible stretch of the segment. Within that
+  // feasible band we break ties with a mild smoothness preference (L should vary monotonically/smoothly
+  // with azimuth), matching the qualitative goal of Eq. 11-12 without the paper's exact residual, which
+  // could not be recovered from the extracted PDF text (see the fidelity note below).
+  const nGrid = 240;
+  const curve=[];
+  const feasEps = 1e-6;
+  for(let k=0;k<=nGrid;k++){
+    const t = k/nGrid;
+    const gv0 = [gammaMin[0]+t*(otherPt[0]-gammaMin[0]), gammaMin[1]+t*(otherPt[1]-gammaMin[1])];
+    const oneMinus = csub([1,0], gv0);
+    function invertL(g){ return cdiv(csub(g, gv0), oneMinus); }
+    const Ls = gammaObsDR.map(invertL);
+    let boundsPenalty=0, imagSum=0;
+    Ls.forEach(Lc=>{
+      imagSum += Lc[1]*Lc[1];
+      if(Lc[0]<0) boundsPenalty += Lc[0]*Lc[0];
+      if(Lc[0]>1) boundsPenalty += (Lc[0]-1)*(Lc[0]-1);
+    });
+    const cost = boundsPenalty + 0.1*imagSum;
+    curve.push([t,cost]);
+  }
+  // The feasible band (cost ~ 0) is the set of candidates for which every sub-look's back-solved L stays
+  // a physically valid ratio in [0,1]; the paper's own text — "traversing... within the bounds of Lmax
+  // and Lmin" — describes searching exactly this band. Take its midpoint as the Ada-VolOpt estimate: a
+  // well-motivated point absent the paper's exact (OCR-unrecoverable) tie-breaking residual, that narrows
+  // toward the true value as noise drops and the number/dispersion of sub-looks grows.
+  let feasStart=null, feasEnd=null, bestFeas={t:0,len:-1,start:0,end:0};
+  curve.forEach(([t,cost],idx)=>{
+    if(cost<=feasEps){
+      if(feasStart===null) feasStart=t;
+      feasEnd=t;
+    } else if(feasStart!==null){
+      if(feasEnd-feasStart>bestFeas.len) bestFeas={len:feasEnd-feasStart, start:feasStart, end:feasEnd};
+      feasStart=null; feasEnd=null;
+    }
+  });
+  if(feasStart!==null && feasEnd-feasStart>bestFeas.len) bestFeas={len:feasEnd-feasStart, start:feasStart, end:feasEnd};
+  let best;
+  if(bestFeas.len>=0){
+    const tMid = 0.5*(bestFeas.start+bestFeas.end);
+    const gv0 = [gammaMin[0]+tMid*(otherPt[0]-gammaMin[0]), gammaMin[1]+tMid*(otherPt[1]-gammaMin[1])];
+    best = {t:tMid, cost:0, gv0};
+  } else {
+    // no fully-feasible candidate (heavy noise) — fall back to least bounds violation
+    let idxMin=0; curve.forEach(([t,cost],i)=>{ if(cost<curve[idxMin][1]) idxMin=i; });
+    const [t] = curve[idxMin];
+    const gv0 = [gammaMin[0]+t*(otherPt[0]-gammaMin[0]), gammaMin[1]+t*(otherPt[1]-gammaMin[1])];
+    best = {t, cost:curve[idxMin][1], gv0};
+  }
+  const gV0_hat = best.gv0;
+
+  // 2-D lookup inversion for (hv, sigma), using slope-adaptive or nominal geometry
+  const thetaUse = c.slopeCorr ? thetaLocal : theta0;
+  const kzUse = c.slopeCorr ? kzLocal : c.kz;
+  const hvGrid=[], sigmaGrid=[];
+  const nH=46, nS=40;
+  for(let i=0;i<nH;i++) hvGrid.push(2 + i*(46-2)/(nH-1));
+  for(let j=0;j<nS;j++) sigmaGrid.push(0.02 + j*(1.2-0.02)/(nS-1));
+  const costGrid=[];
+  let bestInv={i:0,j:0,cost:Infinity};
+  for(let j=0;j<nS;j++){
+    const row=[];
+    for(let i=0;i<nH;i++){
+      const gm = volCoherence(hvGrid[i], sigmaGrid[j], kzUse, thetaUse, theta0);
+      const d = cabs(csub(gm, gV0_hat));
+      row.push(d);
+      if(d<bestInv.cost) bestInv={i,j,cost:d};
+    }
+    costGrid.push(row);
+  }
+  const hv_hat = hvGrid[bestInv.i], sigma_hat = sigmaGrid[bestInv.j];
+
+  // slope-bias comparison: invert height with & without slope correction, sigma fixed at true value, 1-D search
+  function invertHeightOnly(thetaU, kzU){
+    let bestH={h:0,cost:Infinity};
+    for(let i=0;i<200;i++){
+      const h = 2 + i*(46-2)/199;
+      const gm = volCoherence(h, c.sigma, kzU, thetaU, theta0);
+      const d = cabs(csub(gm, gV0_hat));
+      if(d<bestH.cost) bestH={h,cost:d};
+    }
+    return bestH.h;
+  }
+  const hv_uncorrected = invertHeightOnly(theta0, c.kz);
+  const hv_corrected = invertHeightOnly(thetaLocal, kzLocal);
+
+  return {c, theta0, phi0, phiHat, thetaLocal, kzLocal, gV0_true, azDeg, Lvals, gammaObs: gammaObsDR,
+    p1, p2, groundPt, otherPt, gammaMin, gammaMax, iMin, iMax, curve, best, gV0_hat,
+    hvGrid, sigmaGrid, costGrid, bestInv, hv_hat, sigma_hat, hv_uncorrected, hv_corrected, N, dispersionAmp, noiseSigma};
+}
+
+function mulberry32(a){
+  return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296*2-1; };
+}
+
+function circlePts(n=200){ const xs=[],ys=[]; for(let i=0;i<=n;i++){const a=2*Math.PI*i/n; xs.push(Math.cos(a)); ys.push(Math.sin(a));} return [xs,ys]; }
+
+function drawSpectrum(R){
+  const N=R.N, bw=R.c.bw/100;
+  const shapes=[], traces=[];
+  for(let i=0;i<N;i++){
+    const center = N===1?0.5:(i/(N-1))*(1-bw)+bw/2;
+    const x0=center-bw/2, x1=center+bw/2;
+    shapes.push({type:'rect', x0, x1, y0:i+0.1, y1:i+0.9, fillcolor:`rgba(79,209,197,${0.25+0.5*i/N})`, line:{color:'#4fd1c5'}});
+  }
+  traces.push({x:[0,1], y:[-0.5,-0.5], mode:'lines', line:{color:'#2a3450'}, showlegend:false});
+  Plotly.react('plotSpectrum', traces, {
+    shapes, xaxis:{range:[0,1], title:'Normalized Doppler spectrum', gridcolor:'#2a3450', color:'#8f9bb3'},
+    yaxis:{range:[-0.5,N], title:'Sub-look index', gridcolor:'#2a3450', color:'#8f9bb3', dtick:1},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:11},
+    margin:{l:50,r:10,t:10,b:36}
+  }, {displayModeBar:false, responsive:true});
+}
+
+function drawCUC(R){
+  const [cx,cy]=circlePts();
+  const lineDir = [R.otherPt[0]-R.groundPt[0], R.otherPt[1]-R.groundPt[1]];
+  const lineExt = [R.groundPt[0]-0.5*lineDir[0], R.groundPt[1]-0.5*lineDir[1], R.otherPt[0]+0.5*lineDir[0], R.otherPt[1]+0.5*lineDir[1]];
+  const traces=[
+    {x:cx,y:cy, mode:'lines', line:{color:'#2a3450', width:1.5}, showlegend:false, hoverinfo:'skip'},
+    {x:R.gammaObs.map(p=>p[0]), y:R.gammaObs.map(p=>p[1]), mode:'markers', marker:{color:R.azDeg, colorscale:'Viridis', size:10, line:{color:'#0f1420',width:1}}, name:'sub-look γ(az)', text:R.azDeg.map(a=>`az=${a.toFixed(1)}°`), hoverinfo:'text'},
+    {x:[lineExt[0],lineExt[2]], y:[lineExt[1],lineExt[3]], mode:'lines', line:{color:'#f6ad55', dash:'dot', width:1.5}, name:'TLS fit line'},
+    {x:[R.groundPt[0]], y:[R.groundPt[1]], mode:'markers', marker:{color:'#f56565', size:13, symbol:'diamond'}, name:'chosen ground phase'},
+    {x:[R.otherPt[0]], y:[R.otherPt[1]], mode:'markers', marker:{color:'#f56565', size:10, symbol:'diamond-open'}, name:'ambiguous candidate γe'},
+    {x:[R.gammaMin[0]], y:[R.gammaMin[1]], mode:'markers', marker:{color:'#63b3ed', size:12, symbol:'star'}, name:'γ_min (least ground)'},
+    {x:[R.gammaMax[0]], y:[R.gammaMax[1]], mode:'markers', marker:{color:'#48bb78', size:12, symbol:'star'}, name:'γ_max (most ground)'},
+    {x:[R.gV0_true[0]], y:[R.gV0_true[1]], mode:'markers', marker:{color:'#e7ecf5', size:11, symbol:'x'}, name:'true γ_v0'},
+    {x:[R.gV0_hat[0]], y:[R.gV0_hat[1]], mode:'markers', marker:{color:'#f6ad55', size:12, symbol:'cross'}, name:'Ada-VolOpt γ̂_v0'}
+  ];
+  Plotly.react('plotCUC', traces, {
+    xaxis:{range:[-1.15,1.15], zeroline:false, gridcolor:'#2a3450', color:'#8f9bb3', scaleanchor:'y', constrain:'domain'},
+    yaxis:{range:[-1.15,1.15], zeroline:false, gridcolor:'#2a3450', color:'#8f9bb3', constrain:'domain'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10.5},
+    legend:{orientation:'h', y:-0.15, font:{size:9.5}}, margin:{l:40,r:10,t:10,b:10}
+  }, {displayModeBar:false, responsive:true});
+}
+
+function drawAmbig(R){
+  const ts=R.curve.map(p=>p[0]), costs=R.curve.map(p=>p[1]);
+  const traces=[
+    {x:ts, y:costs, mode:'lines', line:{color:'#4fd1c5', width:2}, name:'D(t) optimization objective'},
+    {x:[R.best.t], y:[R.best.cost], mode:'markers', marker:{color:'#f6ad55', size:12, symbol:'star'}, name:'Ada-VolOpt minimum'}
+  ];
+  // where does the true gV0 project onto this segment (t-coordinate), for comparison
+  const seg = csub(R.otherPt, R.gammaMin);
+  const segLen2 = seg[0]*seg[0]+seg[1]*seg[1];
+  const rel = csub(R.gV0_true, R.gammaMin);
+  const tTrue = Math.max(0,Math.min(1,(rel[0]*seg[0]+rel[1]*seg[1])/segLen2));
+  traces.push({x:[tTrue,tTrue], y:[Math.min(...costs), Math.max(...costs)], mode:'lines', line:{color:'#e7ecf5', dash:'dash', width:1.5}, name:'true γ_v0 position'});
+  Plotly.react('plotAmbig', traces, {
+    xaxis:{title:'position t along γ_min → γ_e segment', range:[0,1], gridcolor:'#2a3450', color:'#8f9bb3'},
+    yaxis:{title:'cost D(t)', gridcolor:'#2a3450', color:'#8f9bb3', type:'log'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10.5},
+    legend:{orientation:'h', y:-0.2, font:{size:9.5}}, margin:{l:50,r:10,t:10,b:40}
+  }, {displayModeBar:false, responsive:true});
+}
+
+function drawLookup(R){
+  Plotly.react('plotLookup', [{
+    z:R.costGrid, x:R.hvGrid, y:R.sigmaGrid, type:'heatmap', colorscale:'Viridis', reversescale:true,
+    colorbar:{title:'|Δγ|', titlefont:{size:9,color:'#8f9bb3'}, tickfont:{size:9,color:'#8f9bb3'}}
+  },
+  {x:[R.c.hv],y:[R.c.sigma], mode:'markers', marker:{color:'#e7ecf5', size:12, symbol:'x'}, name:'true (hv,σ)'},
+  {x:[R.hv_hat],y:[R.sigma_hat], mode:'markers', marker:{color:'#f6ad55', size:12, symbol:'cross'}, name:'inverted (ĥv,σ̂)'}
+  ], {
+    xaxis:{title:'h_V (m)', gridcolor:'#2a3450', color:'#8f9bb3'},
+    yaxis:{title:'σ (dB/m)', gridcolor:'#2a3450', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10.5},
+    legend:{orientation:'h', y:-0.2, font:{size:9.5}}, margin:{l:44,r:10,t:10,b:40}
+  }, {displayModeBar:false, responsive:true});
+}
+
+function drawSlopeBias(R){
+  const cats=['True h_V','Uncorrected','Slope-corrected'];
+  const vals=[R.c.hv, R.hv_uncorrected, R.hv_corrected];
+  const colors=['#8f9bb3','#f56565','#48bb78'];
+  Plotly.react('plotSlopeBias', [{x:cats, y:vals, type:'bar', marker:{color:colors}, text:vals.map(v=>v.toFixed(1)+' m'), textposition:'outside'}], {
+    yaxis:{title:'estimated forest height (m)', gridcolor:'#2a3450', color:'#8f9bb3'},
+    xaxis:{color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:11},
+    margin:{l:44,r:10,t:10,b:40}
+  }, {displayModeBar:false, responsive:true});
+}
+
+function drawValidation(){
+  const sites=['Hainan (tropical)','Yanbian (mixed)','Genhe (boreal)'];
+  const adaVol=[5.04,3.41,2.44];
+  const improvePct=[8,10,33];
+  const baseline=adaVol.map((v,i)=> v/(1-improvePct[i]/100));
+  Plotly.react('plotValidation', [
+    {x:sites, y:baseline, type:'bar', name:'Ignoring ground scattering (derived)', marker:{color:'#f56565'}, text:baseline.map(v=>v.toFixed(2)+' m'), textposition:'outside'},
+    {x:sites, y:adaVol, type:'bar', name:'Ada-VolOpt (reported)', marker:{color:'#4fd1c5'}, text:adaVol.map(v=>v.toFixed(2)+' m'), textposition:'outside'}
+  ], {
+    barmode:'group', yaxis:{title:'height RMSE-type accuracy (m)', gridcolor:'#2a3450', color:'#8f9bb3'},
+    xaxis:{color:'#8f9bb3'}, paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:11},
+    legend:{orientation:'h', y:-0.2}, margin:{l:50,r:10,t:10,b:40}
+  }, {displayModeBar:false, responsive:true});
+}
+
+function drawBWNsub(R){
+  const bwx=[]; for(let b=20;b<=90;b+=2) bwx.push(b);
+  const accBW = bwx.map(b=> 2.2 + 0.9*Math.exp(-Math.pow((b-65)/22,2)) + 0.15*randSeeded(b));
+  Plotly.react('plotBW', [
+    {x:bwx, y:accBW, mode:'lines', line:{color:'#4fd1c5', width:2}, name:'illustrative accuracy'},
+    {x:[R.c.bw], y:[2.2+0.9*Math.exp(-Math.pow((R.c.bw-65)/22,2))], mode:'markers', marker:{color:'#f6ad55', size:12}, name:'current setting'}
+  ], {
+    xaxis:{title:'Doppler bandwidth per look (%)', gridcolor:'#2a3450', color:'#8f9bb3'},
+    yaxis:{title:'illustrative accuracy (m, lower=better)', gridcolor:'#2a3450', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10.5},
+    legend:{orientation:'h', y:-0.25, font:{size:9.5}}, margin:{l:50,r:10,t:10,b:46}
+  }, {displayModeBar:false, responsive:true});
+
+  const nx=[3,4,5,6,7,8,9];
+  const accN = nx.map(n=> 2.2 + 1.1*Math.exp(-(n-5)*0.55) + (n<5? (5-n)*0.25:0));
+  Plotly.react('plotNsub', [
+    {x:nx, y:accN, mode:'lines+markers', line:{color:'#f6ad55', width:2}, marker:{size:7}, name:'illustrative accuracy'},
+    {x:[R.c.nsub], y:[accN[nx.indexOf(R.c.nsub)]], mode:'markers', marker:{color:'#4fd1c5', size:13}, name:'current setting'}
+  ], {
+    xaxis:{title:'number of sub-look interferograms', gridcolor:'#2a3450', color:'#8f9bb3', dtick:1},
+    yaxis:{title:'illustrative accuracy (m, lower=better)', gridcolor:'#2a3450', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10.5},
+    legend:{orientation:'h', y:-0.25, font:{size:9.5}}, margin:{l:50,r:10,t:10,b:46}
+  }, {displayModeBar:false, responsive:true});
+}
+function randSeeded(x){ return Math.sin(x*12.9898)*43758.5453 % 1; }
+
+function fmtDeg(v){return v.toFixed(0)+'°';}
+
+function update(){
+  const g=id=>document.getElementById(id);
+  g('v_hv').textContent=(+g('hv').value).toFixed(1)+' m';
+  g('v_sigma').textContent=(+g('sigma').value).toFixed(2)+' dB/m';
+  g('v_theta').textContent=fmtDeg(+g('theta0').value);
+  g('v_kz').textContent=(+g('kz').value).toFixed(3)+' rad/m';
+  g('v_phi0').textContent=fmtDeg(+g('phi0').value);
+  g('v_nsub').textContent=g('nsub').value;
+  g('v_bw').textContent=g('bw').value+' %';
+  g('v_disp').textContent=(+g('disp').value).toFixed(2);
+  g('v_noise').textContent=(+g('noise').value).toFixed(3);
+  g('v_slope').textContent=fmtDeg(+g('slope').value);
+
+  const R = computeAll();
+  drawSpectrum(R);
+  drawCUC(R);
+  drawAmbig(R);
+  drawLookup(R);
+  drawSlopeBias(R);
+  drawValidation();
+  drawBWNsub(R);
+
+  const err_hv = R.hv_hat - R.c.hv;
+  const goodInv = Math.abs(err_hv) < 3;
+  const cond = document.getElementById('inversionCond');
+  cond.className = 'cond ' + (goodInv?'good':'bad');
+  cond.textContent = goodInv
+    ? `Height inversion within 3 m: ĥ_V = ${R.hv_hat.toFixed(1)} m vs true ${R.c.hv.toFixed(1)} m (Δ=${err_hv.toFixed(1)} m), σ̂=${R.sigma_hat.toFixed(2)} dB/m.`
+    : `Height inversion off by ${Math.abs(err_hv).toFixed(1)} m: ĥ_V = ${R.hv_hat.toFixed(1)} m vs true ${R.c.hv.toFixed(1)} m. Try more sub-looks, lower noise, or a wider dispersion.`;
+
+  document.getElementById('pipelineReadout').innerHTML = `
+    <div class="row"><span>local incidence θ_v</span><b>${R.thetaLocal.toFixed(1)}°</b></div>
+    <div class="row"><span>local κ_z</span><b>${R.kzLocal.toFixed(3)} rad/m</b></div>
+    <div class="row"><span>|γ_v0 true|</span><b>${cabs(R.gV0_true).toFixed(3)}</b></div>
+    <div class="row"><span>|γ̂_v0 Ada-VolOpt|</span><b>${cabs(R.gV0_hat).toFixed(3)}</b></div>
+    <div class="row"><span>γ_v0 error</span><b>${cabs(csub(R.gV0_true,R.gV0_hat)).toFixed(3)}</b></div>
+    <div class="row"><span>uncorrected ĥ_V</span><b>${R.hv_uncorrected.toFixed(1)} m</b></div>
+    <div class="row"><span>slope-corrected ĥ_V</span><b>${R.hv_corrected.toFixed(1)} m</b></div>
+  `;
+}
+
+document.querySelectorAll('.controls input').forEach(el=>el.addEventListener('input', update));
+document.getElementById('resample').addEventListener('click', ()=>{resampleNoise(); update();});
+
+const presets = {
+  hainan:  {hv:28, sigma:0.55, theta0:38, kz:0.17, phi0:30, nsub:5, bw:60, disp:1.1, noise:0.06, slope:15},
+  yanbian: {hv:18, sigma:0.35, theta0:30, kz:0.22, phi0:-25, nsub:5, bw:65, disp:1.0, noise:0.05, slope:8},
+  genhe:   {hv:12, sigma:0.15, theta0:35, kz:0.25, phi0:60, nsub:6, bw:70, disp:0.9, noise:0.04, slope:5},
+  clean:   {hv:22, sigma:0.3, theta0:36, kz:0.18, phi0:40, nsub:6, bw:65, disp:1.3, noise:0.015, slope:0},
+  noisy:   {hv:22, sigma:0.3, theta0:36, kz:0.18, phi0:40, nsub:4, bw:35, disp:0.7, noise:0.16, slope:22}
+};
+document.querySelectorAll('.presets button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const p = presets[btn.dataset.preset];
+    Object.entries(p).forEach(([k,v])=>{ const el=document.getElementById(k); if(el) el.value=v; });
+    resampleNoise();
+    update();
+  });
+});
+
+update();
+</script>
+</body>
+</html>

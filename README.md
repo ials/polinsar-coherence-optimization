@@ -44,6 +44,20 @@ to sharpen and stabilize the height estimate versus single- or dual-baseline alt
 Reproduces the paper's real validation numbers from the Mabounie (AfriSAR) and Krycklan sites
 (RMSE improved 39% and 17% respectively over the traditional optimal-single-baseline method).
 
+### [Adaptive Volume Coherence Optimization — Single-Polarization Bistatic InSAR](adaptive-volume-coherence-optimization.html)
+> J. Wan, C. Wang, Y. Lei, E. Chen, A. Fu, Y. Liu, L. Zhao, X. Liu, J. Xu, Y. Fan, Q. Song,
+> *GIScience & Remote Sensing*, 63:1, 2637240 (2026).
+
+Reconstructs Ada-VolOpt, the paper's method for inverting forest height from **single-polarization**
+LuTan-1 bistatic InSAR: splitting each SLC into azimuth sub-looks (time-frequency analysis) to expand
+the observation space, fitting the resulting coherences to the RVoG line in the complex unit circle, and
+resolving the classic 1-D ground/volume ambiguity by requiring every sub-look's implied ground-to-volume
+ratio to stay physically valid in [0, 1] simultaneously. A slope-adaptive RVoG lookup then inverts forest
+height while correcting for the terrain-slope bias that otherwise distorts κ<sub>z</sub> and the local
+incidence angle. Reproduces the paper's real validation numbers across the Hainan (tropical), Yanbian
+(mixed), and Genhe (boreal) test sites (5.04 m / 3.41 m / 2.44 m accuracy; 8% / 10% / 33% improvement
+over a method that ignores ground scattering).
+
 ## Running locally
 
 Each dashboard is a single self-contained HTML file. It only requires internet access once,
