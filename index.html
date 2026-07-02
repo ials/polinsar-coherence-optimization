@@ -16,21 +16,21 @@
   header h1{margin:0 0 4px 0; font-size:20px; font-weight:600;}
   header p{margin:0; color:var(--muted); font-size:13px; max-width:1000px; line-height:1.5;}
   header p.cite{margin-top:8px; font-size:11.5px; color:#6f7c99;}
-  .layout{display:flex; gap:18px; padding:18px 22px; align-items:flex-start;}
-  .controls{flex:0 0 320px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px; position:sticky; top:18px; max-height:calc(100vh - 36px); overflow-y:auto;}
-  .controls h2{font-size:13px; margin:16px 0 10px 0; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border); padding-bottom:6px;}
+  .layout{display:flex; gap:14px; padding:14px 18px; align-items:flex-start;}
+  .controls{flex:0 0 240px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:13px; position:sticky; top:14px; max-height:calc(100vh - 28px); overflow-y:auto;}
+  .controls h2{font-size:11.5px; margin:13px 0 8px 0; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border); padding-bottom:5px;}
   .controls h2:first-child{margin-top:0;}
-  .ctrl{margin-bottom:14px;}
-  .ctrl label{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:6px; color:var(--text);}
-  .ctrl label span.val{color:var(--accent2); font-variant-numeric:tabular-nums; font-weight:600;}
+  .ctrl{margin-bottom:11px;}
+  .ctrl label{display:flex; flex-wrap:wrap; justify-content:space-between; gap:2px 6px; font-size:11.5px; margin-bottom:5px; color:var(--text); line-height:1.25;}
+  .ctrl label span.val{color:var(--accent2); font-variant-numeric:tabular-nums; font-weight:600; white-space:nowrap;}
   .ctrl input[type=range]{width:100%; accent-color:var(--accent);}
-  .ctrl .hint{font-size:10.5px; color:var(--muted); margin-top:3px; line-height:1.35;}
-  .presets{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; margin-bottom:6px;}
-  .presets button{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 9px; font-size:11px; cursor:pointer;}
+  .ctrl .hint{font-size:10px; color:var(--muted); margin-top:3px; line-height:1.3;}
+  .presets{display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; margin-bottom:5px;}
+  .presets button{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:5px 7px; font-size:10.5px; cursor:pointer;}
   .presets button:hover{border-color:#8f9bb3;}
-  .readout{background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-top:6px; font-size:11.5px; line-height:1.65;}
-  .readout .row{display:flex; justify-content:space-between;}
-  .readout .row b{color:var(--accent);}
+  .readout{background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:9px 10px; margin-top:5px; font-size:11px; line-height:1.55;}
+  .readout .row{display:flex; justify-content:space-between; gap:6px;}
+  .readout .row b{color:var(--accent); text-align:right;}
   .grid{flex:1; display:grid; grid-template-columns:1fr 1fr; gap:16px; min-width:0;}
   .card{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px 4px;}
   .card.wide{grid-column:1 / -1;}
@@ -518,6 +518,17 @@ document.querySelectorAll('.presets button').forEach(btn=>{
 });
 
 redrawAll();
+
+// Plotly's built-in responsive:true listens for its own container's ResizeObserver, but with several
+// plots sharing flex "trio" sub-layouts, a real browser window resize doesn't reliably reflow every plot
+// (some were left overflowing their card, and Plotly.Plots.resize() alone produced stale scaleanchor
+// domains on the circular plot). Fully re-running the draw functions against the new container size is
+// slower but robust - and cheap enough here (sub-second) to do on a debounced resize.
+let resizeTimer;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(redrawAll, 150);
+});
 </script>
 </body>
 </html>
