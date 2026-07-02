@@ -1,29 +1,45 @@
-# PolInSAR Coherence Optimization Dashboard
+# PolInSAR Dashboards
 
-An interactive reconstruction of the core contribution of:
+Interactive, client-side reconstructions of Polarimetric SAR Interferometry (PolInSAR) papers
+and models. Each dashboard is a single self-contained HTML file — all computation (coherence
+models, eigensolvers, Monte-Carlo noise simulation, grid-search inversion) runs live in your
+browser via plain JavaScript, numerically verified against the source paper's equations.
 
-> K.P. Papathanassiou, S.R. Cloude, "Single-Baseline Polarimetric SAR Interferometry,"
-> *IEEE Transactions on Geoscience and Remote Sensing*, vol. 39, no. 11, Nov. 2001.
+**Live site:** https://ials.github.io/polinsar-coherence-optimization/
+
+## Dashboards
+
+### [Single-Baseline Polarimetric SAR Interferometry](papathanassiou-cloude-2001.html)
+> K.P. Papathanassiou, S.R. Cloude, *IEEE Transactions on Geoscience and Remote Sensing*,
+> vol. 39, no. 11, Nov. 2001.
 
 Given a random-volume-over-ground (RVoG) scene, the interferometric coherence γ(w) depends
 on the choice of polarization w only through the ground-to-volume amplitude ratio m(w). Since
 m(w) is a generalized Rayleigh quotient of the ground and volume Pauli coherency matrices, its
 extremal values are exactly a generalized eigenvalue problem — the origin of "polarimetric
-coherence optimization." This dashboard solves that eigenproblem live (closed-form, under the
-paper's reflection-symmetry ground model) and visualizes the resulting optimum coherences,
-inversion conditioning, and a simulated tree-height validation.
+coherence optimization." Solved here in closed form (exact under the paper's reflection-symmetry
+ground model). Includes inversion-conditioning analysis (why a wide ground-to-volume-ratio
+spectrum estimates height more reliably) and a simulated tree-height validation.
 
-**Live demo:** see the GitHub Pages link in the repo's "About" section (or `https://<username>.github.io/polinsar-coherence-optimization/`).
+### [Tropical Forest Canopy Height — Temporal Decorrelation Models](forest-canopy-td.html)
+> H. Luo, C. Yue, Y. Wu, X. Zhang, C. Lu, G. Ou, *Ecological Indicators* 166 (2024) 112566.
+
+Runs all four of the paper's real stage-3 inversion algorithms live — RVoG, RMoG, RVoG+VTD,
+and the paper's own faster single-loop RVoG+VTDs — demonstrating why repeat-pass temporal
+decorrelation (mostly wind-driven canopy motion) makes a TD-blind model systematically
+overestimate canopy height, and how each compensation strategy fixes it. Reproduces the
+paper's real accuracy/efficiency numbers from AfriSAR Gabon mangrove validation (canopy up to
+65 m, 4602 LiDAR RH100 points).
 
 ## Running locally
 
-This is a single self-contained `index.html` file. It only requires internet access once,
-to load [Plotly.js](https://plotly.com/javascript/) from a CDN. Open it directly in any
-modern browser — no build step, no server required.
+Each dashboard is a single self-contained HTML file. It only requires internet access once,
+to load [Plotly.js](https://plotly.com/javascript/) from a CDN. Open it directly in any modern
+browser — no build step, no server required.
 
 ## Notes on fidelity
 
-All computation (the eigensolver, the RVoG coherence model, Monte-Carlo N-look noise
-simulation) runs client-side in JavaScript and was numerically verified against the paper's
-equations. Panels 4-5 use illustrative synthetic data (not the paper's real Oberpfaffenhofen
-dataset, which is not publicly redistributable) — this is disclosed in the dashboard's footer.
+Each dashboard's own footer documents its modeling simplifications, closed-form derivations,
+and exactly which panels use the paper's real reported numbers versus illustrative synthetic
+data built to match the paper's qualitative and (where stated) quantitative findings — none of
+the papers' original underlying datasets are redistributed here.

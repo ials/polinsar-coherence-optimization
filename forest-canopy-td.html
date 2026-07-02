@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tropical Forest Canopy Height — Temporal Decorrelation Models (Luo et al. 2024)</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#161d2e; --panel2:#1c2438; --text:#e7ecf5; --muted:#8f9bb3;
+    --accent:#4fd1c5; --accent2:#f6ad55; --border:#2a3450;
+    --rvog:#f56565; --rmog:#f6ad55; --vtd:#63b3ed; --vtds:#48bb78;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text);}
+  header{padding:18px 26px; border-bottom:1px solid var(--border); background:linear-gradient(180deg,#161d2e,#0f1420);}
+  header h1{margin:0 0 4px 0; font-size:20px; font-weight:600;}
+  header p{margin:0; color:var(--muted); font-size:13px; max-width:1050px; line-height:1.5;}
+  header p.cite{margin-top:8px; font-size:11.5px; color:#6f7c99;}
+  .layout{display:flex; gap:14px; padding:14px 18px; align-items:flex-start;}
+  .controls{flex:0 0 250px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:13px; position:sticky; top:14px; max-height:calc(100vh - 28px); overflow-y:auto;}
+  .controls h2{font-size:11.5px; margin:13px 0 8px 0; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border); padding-bottom:5px;}
+  .controls h2:first-child{margin-top:0;}
+  .ctrl{margin-bottom:11px;}
+  .ctrl label{display:flex; flex-wrap:wrap; justify-content:space-between; gap:2px 6px; font-size:11.5px; margin-bottom:5px; color:var(--text); line-height:1.25;}
+  .ctrl label span.val{color:var(--accent2); font-variant-numeric:tabular-nums; font-weight:600; white-space:nowrap;}
+  .ctrl input[type=range]{width:100%; accent-color:var(--accent);}
+  .ctrl .hint{font-size:10px; color:var(--muted); margin-top:3px; line-height:1.3;}
+  .presets{display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; margin-bottom:5px;}
+  .presets button{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:5px 7px; font-size:10.5px; cursor:pointer;}
+  .presets button:hover{border-color:#8f9bb3;}
+  .readout{background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:9px 10px; margin-top:5px; font-size:11px; line-height:1.55;}
+  .readout .row{display:flex; justify-content:space-between; gap:6px;}
+  .readout .row b{color:var(--accent); text-align:right;}
+  .grid{flex:1; display:grid; grid-template-columns:1fr 1fr; gap:16px; min-width:0;}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px 4px;}
+  .card.wide{grid-column:1 / -1;}
+  .card h3{font-size:13px; margin:2px 4px 2px; color:var(--text); font-weight:600;}
+  .card p.note{font-size:11.5px; color:var(--muted); margin:0 4px 6px; line-height:1.4;}
+  .plot{width:100%; height:340px;}
+  .quad{display:flex; gap:8px; flex-wrap:wrap;}
+  .quad .q{flex:1 1 45%; min-width:200px;}
+  .quad .q h4{text-align:center; font-size:11px; margin:0 0 2px; font-weight:700;}
+  .modeltable{width:100%; border-collapse:collapse; font-size:11.5px; margin:6px 0;}
+  .modeltable th, .modeltable td{padding:5px 8px; text-align:right; border-bottom:1px solid var(--border);}
+  .modeltable th:first-child, .modeltable td:first-child{text-align:left;}
+  .modeltable th{color:var(--muted); font-weight:600; font-size:10.5px; text-transform:uppercase;}
+  .swatch{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px;}
+  footer{padding:14px 26px 30px; color:var(--muted); font-size:11.5px; border-top:1px solid var(--border); margin-top:8px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tropical Forest Canopy Height — Temporal Decorrelation Models</h1>
+  <p>Reproduces the core idea of Luo et al. (2024): repeat-pass PolInSAR coherence is corrupted by <b>temporal decorrelation (TD)</b> — mostly wind-driven canopy motion — which the plain RVoG model can't see, so it compensates by inferring a <i>taller</i> tree than actually exists. The paper compares four "stage-3" inversion recipes (RVoG, RMoG, RVoG+VTD, and its own faster RVoG+VTDs) that estimate canopy height from the same noisy, TD-corrupted coherence — this dashboard runs all four live, using the paper's own algorithms.</p>
+  <p class="cite">Source: H. Luo, C. Yue, Y. Wu, X. Zhang, C. Lu, G. Ou, "An efficient method for estimating tropical forest canopy height from airborne PolInSAR data," Ecological Indicators 166 (2024) 112566 ("forest canopy height.pdf" provided by the user).</p>
+</header>
+
+<div class="layout">
+  <div class="controls">
+    <h2>True scene</h2>
+    <div class="ctrl">
+      <label>True canopy height h<sub>v</sub> <span class="val" id="v_hv">30 m</span></label>
+      <input type="range" id="hv" min="5" max="60" step="1" value="30">
+    </div>
+    <div class="ctrl">
+      <label>True extinction σ <span class="val" id="v_sigma">0.30 dB/m</span></label>
+      <input type="range" id="sigma" min="0.02" max="1.5" step="0.02" value="0.3">
+    </div>
+    <div class="ctrl">
+      <label>Incidence angle θ <span class="val" id="v_theta">35°</span></label>
+      <input type="range" id="theta" min="20" max="65" step="1" value="35">
+      <div class="hint">UAVSAR AfriSAR range: 21.5°–65.4°</div>
+    </div>
+    <div class="ctrl">
+      <label>Vertical wavenumber k<sub>z</sub> <span class="val" id="v_kz">0.15 rad/m</span></label>
+      <input type="range" id="kz" min="0.03" max="0.5" step="0.005" value="0.15">
+    </div>
+    <div class="ctrl">
+      <label>Topographic phase φ<sub>0</sub> <span class="val" id="v_phi0">0°</span></label>
+      <input type="range" id="phi0" min="-180" max="180" step="1" value="0">
+    </div>
+
+    <h2>Temporal decorrelation (true)</h2>
+    <div class="ctrl">
+      <label>Volume TD factor γ<sub>TV</sub> <span class="val" id="v_gammaTV">0.80</span></label>
+      <input type="range" id="gammaTV" min="0.3" max="1" step="0.01" value="0.8">
+      <div class="hint">1 = no TD. Mostly wind-driven canopy motion between repeat passes</div>
+    </div>
+    <div class="ctrl">
+      <label>Fixed-σ estimation error <span class="val" id="v_sigmaErr">0.00 dB/m</span></label>
+      <input type="range" id="sigmaErr" min="-0.3" max="0.3" step="0.02" value="0">
+      <div class="hint">How wrong the "fixed extinction" the TD-aware models rely on actually is (paper's Sec. 5 limitation)</div>
+    </div>
+
+    <h2>Estimation</h2>
+    <div class="ctrl">
+      <label>Number of looks N <span class="val" id="v_N">20</span></label>
+      <input type="range" id="N" min="4" max="80" step="1" value="20">
+    </div>
+
+    <div class="presets">
+      <button data-preset="noTD">No TD (ideal)</button>
+      <button data-preset="moderateTD">Moderate wind</button>
+      <button data-preset="strongTD">Strong wind</button>
+      <button data-preset="tallMangrove">Tall Gabon mangrove</button>
+      <button data-preset="shortVeg">Short vegetation</button>
+    </div>
+
+    <h2>Recovered h<sub>v</sub> (this scene)</h2>
+    <div class="readout" id="readout"></div>
+  </div>
+
+  <div class="grid">
+
+    <div class="card wide">
+      <h3>1 — Why TD causes overestimation, and how each model compensates</h3>
+      <p class="note">Left: the true pure-volume coherence γ<sub>V</sub> (green star) vs. what a repeat-pass system actually observes after TD (orange diamond), with an N-look noise cloud around one noisy realization — TD shrinks the coherence magnitude toward the origin, which a TD-<i>blind</i> model reads as "more structural decorrelation," i.e. a taller tree. Right: recovered h<sub>v</sub> from all four of the paper's stage-3 algorithms, computed <i>without</i> sampling noise (fine grid) so the table isolates each model's systematic bias from single-draw noise — panel 2 shows what happens once N-look noise is added back in. Grid-eval counts reproduce the paper's efficiency story directly, not just quoting it.</p>
+      <div class="quad">
+        <div class="q" style="flex:1 1 32%"><div id="plot_phasor" class="plot" style="height:340px"></div></div>
+        <div class="q" style="flex:1 1 60%">
+          <table class="modeltable" id="modelTable"></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2 — Recovered vs. true height, swept across the canopy range</h3>
+      <p class="note">Same TD level and noise, Monte-Carlo repeated (15 trials) at each true height 5–55 m. RVoG (TD-blind) should sit above the 1:1 line at every height; the three TD-aware models should track it much more closely — the paper's Fig. 6/8 story, reproduced with live computation rather than the real 4602-point dataset.</p>
+      <div id="plot_sweep" class="plot"></div>
+    </div>
+
+    <div class="card">
+      <h3>3 — Fig.9: efficiency vs. accuracy (the paper's own reported numbers)</h3>
+      <p class="note">Real results from Table 2 / Fig. 9 of the paper (AfriSAR Gabon mangrove validation against 4602 LiDAR RH100 points) — not a simulation. RVoG+VTDs is simultaneously the fastest <i>and</i> the most accurate, because fixing σ collapses a 2-D grid search into one algebraic pass per height (panel 1's iteration counts show exactly why).</p>
+      <div id="plot_efficiency" class="plot"></div>
+    </div>
+
+    <div class="card">
+      <h3>4 — Fig.6 style: validation scatter (statistically-matched reconstruction)</h3>
+      <p class="note">Synthetic PolInSAR-height vs. LiDAR-RH100 point clouds built to reproduce each model's real reported R²/RMSE/BIAS (Table 2) — <i>not</i> the paper's actual 4602 sample points, which aren't available here. Colored by local point density, matching the paper's figure style.</p>
+      <div id="plot_scatter" class="plot"></div>
+    </div>
+
+    <div class="card wide">
+      <h3>5 — Fig.10 spirit: height of ambiguity and k<sub>z</sub> vs. canopy height</h3>
+      <p class="note">H<sub>oa</sub>=2π/k<sub>z</sub> is the height beyond which the interferometric phase wraps. The paper's PROD baseline-selection method tends to pick smaller k<sub>z</sub> (larger H<sub>oa</sub>) for taller canopies to stay unambiguous — but smaller k<sub>z</sub> also means less height sensitivity, which the paper offers as one explanation for growing scatter above ~45 m. The illustrative k<sub>z</sub>(h<sub>v</sub>) curve here follows that same trade-off logic, not the paper's real baseline-selection data.</p>
+      <div class="quad">
+        <div class="q"><div id="plot_hoa" class="plot"></div></div>
+        <div class="q"><div id="plot_kzcurve" class="plot"></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  RVoG volume coherence γ<sub>V</sub> uses the standard closed form (consistent across this dashboard series). Stage-3 "already ground-separated" pure-volume coherence with TD: RVoG (no compensation) γ<sub>h</sub>=e<sup>iφ₀</sup>γ<sub>V</sub>(h<sub>v</sub>,σ); RVoG+VTD/VTDs γ<sub>h</sub>=e<sup>iφ₀</sup>γ<sub>TV</sub>γ<sub>V</sub>(h<sub>v</sub>,σ<sub>fixed</sub>) (Eq. 17/19, σ<sub>fixed</sub> = true σ + the estimation-error slider); RMoG (μ=0, σ<sub>g</sub>=0 per the paper's own simplification) γ<sub>h</sub>=e<sup>iφ₀</sup>·p₁[e<sup>(p₂+p₃)h_v</sup>−1]/[(p₂+p₃)(e<sup>p₁h_v</sup>−1)], p₁=2σ<sub>fixed</sub>/cosθ, p₂=p₁+ik<sub>z</sub>, p₃=−σ<sub>v</sub>²/(2h<sub>r</sub>)·(4π/λ)², λ=0.2384 m (UAVSAR L-band), h<sub>r</sub>=1 m (paper notes results are insensitive to this reference height) (Eq. 14).
+  RVoG+VTDs solves h<sub>v</sub> in a single loop, computing γ<sub>TV</sub> algebraically at each trial height (Eq. 19) rather than grid-searching it — this dashboard's own iteration counter in panel 1 demonstrates the resulting ~N× speed-up directly, mirroring the paper's reported ≈22× figure.
+  Panel 3 quotes the paper's real Table 2 / Section 4.2 numbers verbatim (a very minor 1-minute discrepancy exists between the paper's own abstract and body text for RMoG's runtime — 28 vs. 29 min — the body-text figure is used here). Panels 2, 4 and 5 are illustrative live simulations built to match the paper's qualitative and, where stated, quantitative findings — not reproductions of the real AfriSAR/LiDAR dataset. N-look noise via a correlated complex-Gaussian coherence simulator (consistent with earlier dashboards in this series). All computation runs client-side.
+</footer>
+
+<script>
+// ============ shared math ============
+const cMul=(a,b)=>[a[0]*b[0]-a[1]*b[1], a[0]*b[1]+a[1]*b[0]];
+function dbToNp(db){ return db/8.6858896; }
+const LAMBDA = 0.2384; // m, UAVSAR L-band
+const HR = 1.0; // m, reference height for RMoG (paper: result insensitive to choice)
+
+function gammaV(hv, sigmaNp, thetaRad, kz){
+  const p = Math.max(2*sigmaNp/Math.cos(thetaRad), 1e-8);
+  const denom1 = p*p + kz*kz;
+  const frac1 = [ (p*p)/denom1, (-p*kz)/denom1 ];
+  const ephv = Math.exp(p*hv);
+  const num2 = [ ephv*Math.cos(kz*hv) - 1, ephv*Math.sin(kz*hv) ];
+  const den2 = Math.max(ephv - 1, 1e-8);
+  const frac2 = [ num2[0]/den2, num2[1]/den2 ];
+  return cMul(frac1, frac2);
+}
+function rotByPhi0(g, phi0Rad){ return cMul(g, [Math.cos(phi0Rad), Math.sin(phi0Rad)]); }
+
+// RMoG stage-3 quantity, mu=0, sigma_g=0 (paper's own simplification for short-interval airborne data)
+function rmogGammaVT(hv, sigmaNp, thetaRad, kz, sigmaV){
+  const p1 = Math.max(2*sigmaNp/Math.cos(thetaRad), 1e-8);
+  const p3 = -(sigmaV*sigmaV)/(2*HR) * Math.pow(4*Math.PI/LAMBDA, 2); // real
+  const sumRe = p1 + p3, sumIm = kz; // p2+p3 = (p1+jkz)+p3
+  const expRe = Math.exp(sumRe*hv)*Math.cos(sumIm*hv);
+  const expIm = Math.exp(sumRe*hv)*Math.sin(sumIm*hv);
+  const numRe = expRe - 1, numIm = expIm;
+  const ep1hv = Math.exp(p1*hv) - 1;
+  const denRe = sumRe*ep1hv, denIm = sumIm*ep1hv;
+  const den2 = Math.max(denRe*denRe + denIm*denIm, 1e-12);
+  const divRe = (numRe*denRe + numIm*denIm)/den2;
+  const divIm = (numIm*denRe - numRe*denIm)/den2;
+  return [p1*divRe, p1*divIm];
+}
+
+function randnBoxMuller(){
+  let u=0, v=0;
+  while(u===0) u = Math.random();
+  while(v===0) v = Math.random();
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+function complexGaussianUnitPower(){ return [randnBoxMuller()/Math.SQRT2, randnBoxMuller()/Math.SQRT2]; }
+function sampleOneCoherence(gammaTrue, N){
+  const gConj = [gammaTrue[0], -gammaTrue[1]];
+  const scale = Math.sqrt(Math.max(1 - (gammaTrue[0]*gammaTrue[0] + gammaTrue[1]*gammaTrue[1]), 0));
+  let numRe=0, numIm=0, denA=0, denB=0;
+  for(let i=0;i<N;i++){
+    const z1 = complexGaussianUnitPower();
+    const z2 = complexGaussianUnitPower();
+    const term1 = cMul(gConj, z1);
+    const y2 = [term1[0]+scale*z2[0], term1[1]+scale*z2[1]];
+    const y2conj = [y2[0], -y2[1]];
+    const prod = cMul(z1, y2conj);
+    numRe += prod[0]; numIm += prod[1];
+    denA += z1[0]*z1[0]+z1[1]*z1[1];
+    denB += y2[0]*y2[0]+y2[1]*y2[1];
+  }
+  const den = Math.sqrt(denA*denB) || 1e-9;
+  return [numRe/den, numIm/den];
+}
+function linspace(a,b,n){ const out=[]; for(let i=0;i<n;i++) out.push(a+(b-a)*i/(n-1)); return out; }
+
+// ============ four stage-3 recovery algorithms ============
+// returns {hv, extra, iters}
+function recoverRVoG(gammaObs, thetaRad, kz, phi0Rad, hvGrid, sigGrid){
+  let best={cost:Infinity, hv:hvGrid[0], sigma:sigGrid[0]}; let iters=0;
+  hvGrid.forEach(hv=>sigGrid.forEach(sig=>{
+    iters++;
+    const g = rotByPhi0(gammaV(hv, dbToNp(sig), thetaRad, kz), phi0Rad);
+    const c = (g[0]-gammaObs[0])**2 + (g[1]-gammaObs[1])**2;
+    if(c<best.cost) best={cost:c, hv, sigma:sig};
+  }));
+  return {hv:best.hv, extra:best.sigma, iters};
+}
+function recoverVTD(gammaObs, sigmaFixedNp, thetaRad, kz, phi0Rad, hvGrid, gtvGrid){
+  let best={cost:Infinity, hv:hvGrid[0], gtv:gtvGrid[0]}; let iters=0;
+  hvGrid.forEach(hv=>{
+    const gv = gammaV(hv, sigmaFixedNp, thetaRad, kz);
+    gtvGrid.forEach(gtv=>{
+      iters++;
+      const g = rotByPhi0([gv[0]*gtv, gv[1]*gtv], phi0Rad);
+      const c = (g[0]-gammaObs[0])**2 + (g[1]-gammaObs[1])**2;
+      if(c<best.cost) best={cost:c, hv, gtv};
+    });
+  });
+  return {hv:best.hv, extra:best.gtv, iters};
+}
+function recoverVTDs(gammaObs, sigmaFixedNp, thetaRad, kz, phi0Rad, hvGrid){
+  let best={cost:Infinity, hv:hvGrid[0], gtv:1}; let iters=0;
+  hvGrid.forEach(hv=>{
+    iters++;
+    const gv = gammaV(hv, sigmaFixedNp, thetaRad, kz);
+    const rotGv = rotByPhi0(gv, phi0Rad);
+    const magRotGv = Math.max(Math.hypot(...rotGv), 1e-9);
+    const gtv = Math.hypot(...gammaObs) / magRotGv;
+    const pred = [rotGv[0]*gtv, rotGv[1]*gtv];
+    const c = (pred[0]-gammaObs[0])**2 + (pred[1]-gammaObs[1])**2;
+    if(c<best.cost) best={cost:c, hv, gtv};
+  });
+  return {hv:best.hv, extra:best.gtv, iters};
+}
+function recoverRMoG(gammaObs, sigmaFixedNp, thetaRad, kz, phi0Rad, hvGrid, sigmaVGrid){
+  let best={cost:Infinity, hv:hvGrid[0], sigmaV:sigmaVGrid[0]}; let iters=0;
+  hvGrid.forEach(hv=>sigmaVGrid.forEach(sv=>{
+    iters++;
+    const g = rotByPhi0(rmogGammaVT(hv, sigmaFixedNp, thetaRad, kz, sv), phi0Rad);
+    const c = (g[0]-gammaObs[0])**2 + (g[1]-gammaObs[1])**2;
+    if(c<best.cost) best={cost:c, hv, sigmaV:sv};
+  }));
+  return {hv:best.hv, extra:best.sigmaV, iters};
+}
+
+function runAllModels(P, hvGridN, sigGridN, gammaObsOverride){
+  const thetaRad = P.theta*Math.PI/180, phi0Rad = P.phi0*Math.PI/180;
+  const sigmaNp = dbToNp(P.sigma);
+  const sigmaFixedNp = dbToNp(P.sigma + P.sigmaErr);
+  const gvTrue = gammaV(P.hv, sigmaNp, thetaRad, P.kz);
+  const gammaTrue = rotByPhi0([gvTrue[0]*P.gammaTV, gvTrue[1]*P.gammaTV], phi0Rad);
+  const gammaObs = gammaObsOverride || (P.N===Infinity ? gammaTrue : sampleOneCoherence(gammaTrue, P.N));
+
+  const hvGrid = linspace(2, 62, hvGridN);
+  const sigGrid = linspace(0.02, 1.5, sigGridN);
+  const gtvGrid = linspace(0.3, 1.0, sigGridN);
+  const sigmaVGrid = linspace(0.001, 0.35, sigGridN);
+
+  const rvog = recoverRVoG(gammaObs, thetaRad, P.kz, phi0Rad, hvGrid, sigGrid);
+  const vtd = recoverVTD(gammaObs, sigmaFixedNp, thetaRad, P.kz, phi0Rad, hvGrid, gtvGrid);
+  const vtds = recoverVTDs(gammaObs, sigmaFixedNp, thetaRad, P.kz, phi0Rad, hvGrid);
+  const rmog = recoverRMoG(gammaObs, sigmaFixedNp, thetaRad, P.kz, phi0Rad, hvGrid, sigmaVGrid);
+
+  return {gvTrue, gammaTrue, gammaObs, rvog, vtd, vtds, rmog};
+}
+
+// ============ controls ============
+const els = ['hv','sigma','theta','kz','phi0','gammaTV','sigmaErr','N']
+  .reduce((o,id)=>{o[id]=document.getElementById(id); return o;}, {});
+const disp = {
+  hv:v=>v.toFixed(0)+' m', sigma:v=>v.toFixed(2)+' dB/m', theta:v=>v.toFixed(0)+'°', kz:v=>v.toFixed(3)+' rad/m',
+  phi0:v=>v.toFixed(0)+'°', gammaTV:v=>v.toFixed(2), sigmaErr:v=>(v>=0?'+':'')+v.toFixed(2)+' dB/m', N:v=>v.toFixed(0)
+};
+function params(){ const p={}; Object.keys(els).forEach(id=>p[id]=+els[id].value); return p; }
+
+function circleTrace(){
+  const re=[], im=[]; const Np=200;
+  for(let i=0;i<=Np;i++){ const a=2*Math.PI*i/Np; re.push(Math.cos(a)); im.push(Math.sin(a)); }
+  return {x:re,y:im,mode:'lines',line:{color:'#2a3450',width:1.5},showlegend:false,hoverinfo:'skip'};
+}
+
+function drawPhasor(P, res){
+  const cloud=[]; for(let t=0;t<80;t++) cloud.push(sampleOneCoherence(res.gammaTrue, P.N));
+  const traces = [
+    circleTrace(),
+    {x:cloud.map(p=>p[0]), y:cloud.map(p=>p[1]), mode:'markers', marker:{color:'#f6ad55', size:4, opacity:0.3}, hoverinfo:'skip', showlegend:false},
+    {x:[res.gvTrue[0]*Math.cos(P.phi0*Math.PI/180)-res.gvTrue[1]*Math.sin(P.phi0*Math.PI/180)], y:[res.gvTrue[0]*Math.sin(P.phi0*Math.PI/180)+res.gvTrue[1]*Math.cos(P.phi0*Math.PI/180)],
+      mode:'markers+text', marker:{color:'#48bb78', size:13, symbol:'star'}, text:['γᵥ (no TD)'], textposition:'top center', name:'true, no TD'},
+    {x:[res.gammaTrue[0]], y:[res.gammaTrue[1]], mode:'markers+text', marker:{color:'#f6ad55', size:11, symbol:'diamond'}, text:['γ (with TD)'], textposition:'bottom center', name:'true, with TD'},
+    {x:[res.gammaObs[0]], y:[res.gammaObs[1]], mode:'markers+text', marker:{color:'#e7ecf5', size:10, symbol:'x'}, text:['observed'], textposition:'bottom center', name:'N-look observed'},
+  ];
+  Plotly.react('plot_phasor', traces, {
+    xaxis:{range:[-1.15,1.15], autorange:false, constrain:'domain', zeroline:true, zerolinecolor:'#2a3450', gridcolor:'#1c2438', scaleanchor:'y', scaleratio:1, title:'Re(γ)', color:'#8f9bb3'},
+    yaxis:{range:[-1.15,1.15], autorange:false, constrain:'domain', zeroline:true, zerolinecolor:'#2a3450', gridcolor:'#1c2438', title:'Im(γ)', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10},
+    margin:{l:45,r:10,t:10,b:35}, showlegend:true, legend:{orientation:'h', y:-0.18, font:{size:8}}
+  }, {displayModeBar:false, responsive:true});
+}
+
+function drawModelTable(P, res){
+  const rows = [
+    {name:'RVoG (TD-blind)', color:'var(--rvog)', hv:res.rvog.hv, iters:res.rvog.iters},
+    {name:'RMoG', color:'var(--rmog)', hv:res.rmog.hv, iters:res.rmog.iters},
+    {name:'RVoG+VTD', color:'var(--vtd)', hv:res.vtd.hv, iters:res.vtd.iters},
+    {name:'RVoG+VTDs', color:'var(--vtds)', hv:res.vtds.hv, iters:res.vtds.iters},
+  ];
+  let html = `<tr><th>Model</th><th>Recovered hᵥ</th><th>Error</th><th>Grid evals</th></tr>`;
+  rows.forEach(r=>{
+    const err = r.hv - P.hv;
+    html += `<tr><td><span class="swatch" style="background:${r.color}"></span>${r.name}</td>
+      <td>${r.hv.toFixed(1)} m</td><td style="color:${Math.abs(err)>3?'#f56565':'#48bb78'}">${err>=0?'+':''}${err.toFixed(1)} m</td>
+      <td>${r.iters.toLocaleString()}</td></tr>`;
+  });
+  document.getElementById('modelTable').innerHTML = html;
+}
+
+function updateReadout(P, res){
+  document.getElementById('readout').innerHTML = `
+    <div class="row"><span>true h<sub>v</sub></span><b>${P.hv} m</b></div>
+    <div class="row"><span>|γᵥ| (no TD)</span><b>${Math.hypot(...res.gvTrue).toFixed(3)}</b></div>
+    <div class="row"><span>|γ| (with TD)</span><b>${Math.hypot(...res.gammaTrue).toFixed(3)}</b></div>
+    <div class="row"><span>RVoG bias</span><b>${(res.rvog.hv-P.hv>=0?'+':'')}${(res.rvog.hv-P.hv).toFixed(1)} m</b></div>
+    <div class="row"><span>RVoG+VTDs bias</span><b>${(res.vtds.hv-P.hv>=0?'+':'')}${(res.vtds.hv-P.hv).toFixed(1)} m</b></div>
+  `;
+}
+
+function drawSweep(P){
+  const heights = linspace(5,55,11);
+  const trials = 15;
+  const models = {rvog:[], rmog:[], vtd:[], vtds:[]};
+  const stds = {rvog:[], rmog:[], vtd:[], vtds:[]};
+  heights.forEach(hTrue=>{
+    const acc = {rvog:[], rmog:[], vtd:[], vtds:[]};
+    for(let t=0;t<trials;t++){
+      const Pt = Object.assign({}, P, {hv:hTrue});
+      const r = runAllModels(Pt, 20, 16);
+      acc.rvog.push(r.rvog.hv); acc.rmog.push(r.rmog.hv); acc.vtd.push(r.vtd.hv); acc.vtds.push(r.vtds.hv);
+    }
+    const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
+    const std=a=>{const m=mean(a); return Math.sqrt(a.reduce((s,v)=>s+(v-m)*(v-m),0)/a.length);};
+    Object.keys(acc).forEach(k=>{ models[k].push(mean(acc[k])); stds[k].push(std(acc[k])); });
+  });
+  const traces = [
+    {x:heights, y:heights, mode:'lines', line:{color:'#8f9bb3', width:1.5, dash:'dot'}, name:'1:1 (true)'},
+    {x:heights, y:models.rvog, mode:'lines+markers', line:{color:'#f56565'}, error_y:{type:'data',array:stds.rvog,visible:true,color:'#f56565'}, name:'RVoG'},
+    {x:heights, y:models.rmog, mode:'lines+markers', line:{color:'#f6ad55'}, error_y:{type:'data',array:stds.rmog,visible:true,color:'#f6ad55'}, name:'RMoG'},
+    {x:heights, y:models.vtd, mode:'lines+markers', line:{color:'#63b3ed'}, error_y:{type:'data',array:stds.vtd,visible:true,color:'#63b3ed'}, name:'RVoG+VTD'},
+    {x:heights, y:models.vtds, mode:'lines+markers', line:{color:'#48bb78'}, error_y:{type:'data',array:stds.vtds,visible:true,color:'#48bb78'}, name:'RVoG+VTDs'},
+  ];
+  Plotly.react('plot_sweep', traces, {
+    xaxis:{title:'true hᵥ (m)', color:'#8f9bb3'}, yaxis:{title:'recovered hᵥ (m)', range:[0,65], color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10},
+    legend:{orientation:'h', y:-0.28, font:{size:8.5}}, margin:{l:45,r:10,t:5,b:50}
+  }, {displayModeBar:false, responsive:true});
+}
+
+// ============ panel 3: real paper numbers ============
+function drawEfficiency(){
+  const models = ['RVoG','RMoG','RVoG+VTD','RVoG+VTDs'];
+  const time = [33, 29, 35, 1.5];
+  const rmse = [7.335, 6.774, 7.277, 6.626];
+  const colors = ['#f56565','#f6ad55','#63b3ed','#48bb78'];
+  Plotly.react('plot_efficiency', [
+    {x:models, y:time, type:'bar', name:'Inversion time (min)', marker:{color:colors}, yaxis:'y'},
+    {x:models, y:rmse, type:'scatter', mode:'markers+lines', name:'RMSE (m)', marker:{color:'#e7ecf5', size:10}, line:{color:'#e7ecf5', dash:'dot'}, yaxis:'y2'},
+  ], {
+    xaxis:{color:'#8f9bb3'},
+    yaxis:{title:'inversion time (min)', color:'#8f9bb3'},
+    yaxis2:{title:'RMSE (m)', overlaying:'y', side:'right', range:[6,7.6], color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10},
+    legend:{orientation:'h', y:-0.2, font:{size:9}}, margin:{l:50,r:50,t:10,b:40}
+  }, {displayModeBar:false, responsive:true});
+}
+
+// ============ panel 4: statistically-matched validation scatter ============
+function drawScatter(){
+  const stats = {
+    RVoG:      {r2:0.770, rmse:7.335, bias:-3.493, color:'#f56565'},
+    RMoG:      {r2:0.804, rmse:6.774, bias:1.801,  color:'#f6ad55'},
+    'RVoG+VTD':{r2:0.774, rmse:7.277, bias:2.711,  color:'#63b3ed'},
+    'RVoG+VTDs':{r2:0.813, rmse:6.626, bias:0.670, color:'#48bb78'},
+  };
+  const Npts = 1200;
+  // synthetic "true" LiDAR heights, right-skewed-ish, matching a mangrove forest 0-65m
+  const trueH = [];
+  for(let i=0;i<Npts;i++){
+    let h = 0;
+    for(let k=0;k<3;k++) h += Math.random(); // Irwin-Hall-ish, smoother than uniform
+    h = (h/3)*55 + 5*Math.random();
+    trueH.push(Math.min(Math.max(h, 0.5), 64));
+  }
+  const traces = Object.keys(stats).map(key=>{
+    const s = stats[key];
+    const noiseStd = Math.sqrt(Math.max(s.rmse*s.rmse - s.bias*s.bias, 0.5));
+    const est = trueH.map(h => Math.max(h - s.bias + noiseStd*randnBoxMuller(), 0));
+    return {x:trueH, y:est, mode:'markers', marker:{color:s.color, size:3, opacity:0.35}, name:`${key} (R²=${s.r2})`, visible: key==='RVoG'?true:'legendonly'};
+  });
+  traces.push({x:[0,65],y:[0,65],mode:'lines',line:{color:'#e7ecf5',width:1,dash:'dot'},name:'1:1',showlegend:false});
+  Plotly.react('plot_scatter', traces, {
+    xaxis:{title:'LiDAR RH100 (m)', range:[0,65], color:'#8f9bb3'}, yaxis:{title:'PolInSAR height (m)', range:[0,70], color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10},
+    legend:{orientation:'h', y:-0.25, font:{size:8.5}}, margin:{l:45,r:10,t:5,b:50}
+  }, {displayModeBar:false, responsive:true});
+}
+
+// ============ panel 5: Hoa and kz vs height ============
+function drawHoa(P){
+  const heights = linspace(2,65,60);
+  // illustrative kz-selection heuristic: keep kz*hv near a target (~1.6 rad), clipped to slider range bounds
+  const kzMin=0.03, kzMax=0.5, targetProduct=1.6;
+  const kzCurve = heights.map(h => Math.min(Math.max(targetProduct/h, kzMin), kzMax));
+  const hoaCurve = kzCurve.map(kz => 2*Math.PI/kz);
+  const curKz = P.kz, curHoa = 2*Math.PI/P.kz;
+
+  Plotly.react('plot_hoa', [
+    {x:heights, y:hoaCurve, mode:'lines', line:{color:'#4fd1c5', width:2}, name:'H_oa(h_v)'},
+    {x:[P.hv], y:[curHoa], mode:'markers', marker:{color:'#f6ad55', size:11}, name:'current scene'},
+  ], {
+    xaxis:{title:'canopy height hᵥ (m)', color:'#8f9bb3'}, yaxis:{title:'height of ambiguity H_oa (m)', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10},
+    legend:{orientation:'h', y:-0.28, font:{size:9}}, margin:{l:50,r:10,t:5,b:50}
+  }, {displayModeBar:false, responsive:true});
+
+  Plotly.react('plot_kzcurve', [
+    {x:heights, y:kzCurve, mode:'lines', line:{color:'#f56565', width:2}, name:'illustrative k_z(h_v)'},
+    {x:[P.hv], y:[curKz], mode:'markers', marker:{color:'#f6ad55', size:11}, name:'current scene'},
+  ], {
+    xaxis:{title:'canopy height hᵥ (m)', color:'#8f9bb3'}, yaxis:{title:'k_z (rad/m)', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10},
+    legend:{orientation:'h', y:-0.28, font:{size:9}}, margin:{l:50,r:10,t:5,b:50}
+  }, {displayModeBar:false, responsive:true});
+}
+
+function redrawAll(){
+  const P = params();
+  Object.keys(disp).forEach(k=>{ document.getElementById('v_'+k).textContent = disp[k](P[k]); });
+  // Two variants: a noisy single N-look draw (for the phasor cloud, illustrating estimation uncertainty)
+  // and the noiseless/deterministic case (for the model table), which isolates each model's systematic
+  // bias from single-draw sampling noise - otherwise a single noisy sample can coincidentally land all
+  // four models on the same coarse grid point, obscuring the real, on-average bias difference that
+  // panel 2's Monte-Carlo sweep demonstrates properly.
+  const resNoisy = runAllModels(P, 45, 35);
+  const resClean = runAllModels(P, 200, 120, resNoisy.gammaTrue);
+  updateReadout(P, resClean);
+  drawPhasor(P, resNoisy);
+  drawModelTable(P, resClean);
+  drawSweep(P);
+  drawEfficiency();
+  drawScatter();
+  drawHoa(P);
+}
+Object.values(els).forEach(el => el.addEventListener('input', redrawAll));
+
+let resizeTimer;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(redrawAll, 150);
+});
+
+const presets = {
+  noTD:         {hv:30, sigma:0.3, theta:35, kz:0.15, phi0:0, gammaTV:1.0, sigmaErr:0, N:20},
+  moderateTD:   {hv:30, sigma:0.3, theta:35, kz:0.15, phi0:0, gammaTV:0.8, sigmaErr:0, N:20},
+  strongTD:     {hv:30, sigma:0.3, theta:35, kz:0.15, phi0:0, gammaTV:0.55, sigmaErr:0, N:20},
+  tallMangrove: {hv:55, sigma:0.15, theta:30, kz:0.08, phi0:0, gammaTV:0.75, sigmaErr:0.05, N:20},
+  shortVeg:     {hv:8,  sigma:0.4, theta:40, kz:0.3, phi0:0, gammaTV:0.7, sigmaErr:0, N:20},
+};
+document.querySelectorAll('.presets button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const p = presets[btn.dataset.preset];
+    Object.keys(p).forEach(k=>{ els[k].value = p[k]; });
+    redrawAll();
+  });
+});
+
+redrawAll();
+</script>
+</body>
+</html>
