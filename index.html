@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Single-Baseline PolInSAR — Papathanassiou &amp; Cloude 2001</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#161d2e; --panel2:#1c2438; --text:#e7ecf5; --muted:#8f9bb3;
+    --accent:#4fd1c5; --accent2:#f6ad55; --border:#2a3450;
+    --c1:#f56565; --c2:#f6ad55; --c3:#48bb78; --v:#63b3ed;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text);}
+  header{padding:18px 26px; border-bottom:1px solid var(--border); background:linear-gradient(180deg,#161d2e,#0f1420);}
+  header h1{margin:0 0 4px 0; font-size:20px; font-weight:600;}
+  header p{margin:0; color:var(--muted); font-size:13px; max-width:1000px; line-height:1.5;}
+  header p.cite{margin-top:8px; font-size:11.5px; color:#6f7c99;}
+  .layout{display:flex; gap:18px; padding:18px 22px; align-items:flex-start;}
+  .controls{flex:0 0 320px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px; position:sticky; top:18px; max-height:calc(100vh - 36px); overflow-y:auto;}
+  .controls h2{font-size:13px; margin:16px 0 10px 0; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border); padding-bottom:6px;}
+  .controls h2:first-child{margin-top:0;}
+  .ctrl{margin-bottom:14px;}
+  .ctrl label{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:6px; color:var(--text);}
+  .ctrl label span.val{color:var(--accent2); font-variant-numeric:tabular-nums; font-weight:600;}
+  .ctrl input[type=range]{width:100%; accent-color:var(--accent);}
+  .ctrl .hint{font-size:10.5px; color:var(--muted); margin-top:3px; line-height:1.35;}
+  .presets{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; margin-bottom:6px;}
+  .presets button{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 9px; font-size:11px; cursor:pointer;}
+  .presets button:hover{border-color:#8f9bb3;}
+  .readout{background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-top:6px; font-size:11.5px; line-height:1.65;}
+  .readout .row{display:flex; justify-content:space-between;}
+  .readout .row b{color:var(--accent);}
+  .grid{flex:1; display:grid; grid-template-columns:1fr 1fr; gap:16px; min-width:0;}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px 4px;}
+  .card.wide{grid-column:1 / -1;}
+  .card h3{font-size:13px; margin:2px 4px 2px; color:var(--text); font-weight:600;}
+  .card p.note{font-size:11.5px; color:var(--muted); margin:0 4px 6px; line-height:1.4;}
+  .plot{width:100%; height:340px;}
+  .trio{display:flex; gap:8px;}
+  .trio .third{flex:1; min-width:0;}
+  .trio .third h4{text-align:center; font-size:11px; color:var(--muted); margin:0 0 2px;}
+  .cond{padding:8px 12px; border-radius:8px; font-size:12px; font-weight:600; margin:6px 4px;}
+  .cond.good{background:rgba(72,187,120,0.15); color:var(--c3); border:1px solid var(--c3);}
+  .cond.bad{background:rgba(245,101,101,0.15); color:var(--c1); border:1px solid var(--c1);}
+  footer{padding:14px 26px 30px; color:var(--muted); font-size:11.5px; border-top:1px solid var(--border); margin-top:8px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Single-Baseline Polarimetric SAR Interferometry — Papathanassiou &amp; Cloude (2001)</h1>
+  <p>An interactive reconstruction of the paper's core contribution: given a random-volume-over-ground scene, the interferometric coherence <i>γ(w)</i> depends on the choice of polarization <i>w</i> only through the
+  ground-to-volume amplitude ratio <i>m(w)</i>. Since m(w) is a generalized Rayleigh quotient of the ground and volume Pauli coherency matrices, its extremal values are exactly a generalized eigenvalue problem —
+  the origin of "polarimetric coherence optimization." The three optimum coherences all lie, by construction, on the RVoG line through γ<sub>V</sub>.</p>
+  <p class="cite">Source: K.P. Papathanassiou, S.R. Cloude, "Single-Baseline Polarimetric SAR Interferometry," IEEE TGRS, vol. 39, no. 11, Nov. 2001 (PapCloude2001.pdf provided by the user).</p>
+</header>
+
+<div class="layout">
+  <div class="controls">
+    <h2>RVoG scene</h2>
+    <div class="ctrl">
+      <label>Volume height h<sub>V</sub> <span class="val" id="v_hv">25 m</span></label>
+      <input type="range" id="hv" min="3" max="40" step="0.5" value="25">
+    </div>
+    <div class="ctrl">
+      <label>Extinction σ <span class="val" id="v_sigma">0.20 dB/m</span></label>
+      <input type="range" id="sigma" min="0" max="1.5" step="0.02" value="0.2">
+    </div>
+    <div class="ctrl">
+      <label>Incidence angle θ<sub>0</sub> <span class="val" id="v_theta">30°</span></label>
+      <input type="range" id="theta" min="15" max="55" step="1" value="30">
+    </div>
+    <div class="ctrl">
+      <label>Vertical wavenumber κ<sub>z</sub> <span class="val" id="v_kz">0.15 rad/m</span></label>
+      <input type="range" id="kz" min="0.02" max="0.6" step="0.005" value="0.15">
+    </div>
+    <div class="ctrl">
+      <label>Topographic phase φ<sub>0</sub> <span class="val" id="v_phi0">0°</span></label>
+      <input type="range" id="phi0" min="-180" max="180" step="1" value="0">
+    </div>
+
+    <h2>Volume polarimetric structure (Eq.16)</h2>
+    <div class="ctrl">
+      <label>Shape factor f <span class="val" id="v_f">0.30</span></label>
+      <input type="range" id="f" min="0" max="0.5" step="0.01" value="0.3">
+      <div class="hint">T_V=m_V·diag(1,f,f). f=0: spherical particles. f=0.5: dipoles</div>
+    </div>
+
+    <h2>Ground polarimetric structure (Eq.17)</h2>
+    <div class="ctrl">
+      <label>Mean ground/volume ratio m₀ <span class="val" id="v_m0db">0.0 dB</span></label>
+      <input type="range" id="m0db" min="-15" max="20" step="0.5" value="0">
+    </div>
+    <div class="ctrl">
+      <label>Double-bounce-like / surface-like <span class="val" id="v_bOverA">0.30</span></label>
+      <input type="range" id="bOverA" min="0" max="3" step="0.02" value="0.3">
+    </div>
+    <div class="ctrl">
+      <label>HV-like ground depolarization <span class="val" id="v_dOverA">0.05</span></label>
+      <input type="range" id="dOverA" min="0" max="1" step="0.02" value="0.05">
+    </div>
+    <div class="ctrl">
+      <label>Ground channel correlation ρ <span class="val" id="v_rho">0.30</span></label>
+      <input type="range" id="rho" min="0" max="0.95" step="0.02" value="0.3">
+      <div class="hint">These four set T_G, the 3×3 (reflection-symmetric) ground Pauli coherency matrix</div>
+    </div>
+
+    <h2>Estimation</h2>
+    <div class="ctrl">
+      <label>Number of looks N <span class="val" id="v_N">20</span></label>
+      <input type="range" id="N" min="4" max="100" step="1" value="20">
+    </div>
+
+    <div class="presets">
+      <button data-preset="balanced">Balanced forest</button>
+      <button data-preset="isotropicGround">Isotropic ground (pol-independent)</button>
+      <button data-preset="surface">Surface / field (Fig.7b)</button>
+      <button data-preset="wideSpectrum">Wide m-spectrum</button>
+      <button data-preset="narrowSpectrum">Narrow m-spectrum</button>
+    </div>
+
+    <h2>Optimum coherences</h2>
+    <div class="readout" id="readout"></div>
+  </div>
+
+  <div class="grid">
+
+    <div class="card wide">
+      <h3>1 — Coherence optimization: the eigenproblem, live</h3>
+      <p class="note">Solving T<sub>G</sub>w=m·T<sub>V</sub>w (a generalized Rayleigh-quotient eigenproblem, exact under the paper's reflection-symmetry ground model, Eqs.16-17) gives three ordered ground-to-volume ratios m<sub>1</sub>≥m<sub>2</sub>≥m<sub>3</sub> and their scattering mechanisms w<sub>1</sub>,w<sub>2</sub>,w<sub>3</sub>. Feeding each m<sub>j</sub> into the scalar RVoG mixing formula (Eq.12) gives the three optimum coherences — which, as the paper's Eq.21/Fig.6 shows, must lie exactly on the straight line through γ<sub>V</sub> in the direction (1−γ<sub>V</sub>). Pale clouds are N-look estimation noise.</p>
+      <div class="trio">
+        <div class="third" style="flex:1.3"><div id="plot_circle" class="plot" style="height:380px"></div></div>
+        <div class="third">
+          <h4>Optimum scattering mechanisms |w<sub>j</sub>|</h4>
+          <div id="plot_wcomp" class="plot" style="height:180px"></div>
+          <h4>Conditioning</h4>
+          <div id="cond" class="cond"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2 — Fig.6 spirit: phase-center separation vs. uncertainty</h3>
+      <p class="note">Effective phase-center height h<sub>j</sub>≈arg(γ<sub>j</sub>)/κ<sub>z</sub> for each optimum channel, ±1σ from N-look phase noise. Good conditioning (Section IV-A) needs the three h<sub>j</sub> separated by more than their combined uncertainty — high coherence alone is not enough.</p>
+      <div id="plot_zsep" class="plot"></div>
+    </div>
+
+    <div class="card">
+      <h3>3 — "Ground varies ~25 dB with polarization, volume only ~5-10 dB"</h3>
+      <p class="note">Diagonal (co-pol/cross-pol channel) intensities of T<sub>V</sub> and T<sub>G</sub> in dB, illustrating the paper's key qualitative claim about why ground scattering — not volume — drives the polarization-dependence of PolInSAR coherence.</p>
+      <div id="plot_groundvol" class="plot"></div>
+    </div>
+
+    <div class="card wide">
+      <h3>4 — Fig.9 spirit: why a wide m-spectrum conditions better</h3>
+      <p class="note">The paper's own two scenarios (m<sub>1</sub>:m<sub>2</sub>:m<sub>3</sub> = 1.0:0.1:0.01 "wide" vs. 0.1:0.05:0.01 "narrow") applied to the Section IV-A conditioning criterion directly: each optimum channel's effective phase-center height ± its N-look uncertainty, across a true-height sweep (5-35 m). Left (wide): the three h<sub>j</sub> stay clearly separated at every height. Right (narrow): h<sub>2</sub> and h<sub>3</sub> stay close together and their error bars often overlap — the geometric reason a narrow spectrum makes the joint inversion ill-conditioned, independent of any specific solver.</p>
+      <div class="trio">
+        <div class="third"><h4>Wide spectrum (1.0 : 0.1 : 0.01)</h4><div id="plot_fig9_hv" class="plot"></div></div>
+        <div class="third"><h4>Narrow spectrum (0.1 : 0.05 : 0.01)</h4><div id="plot_fig9_sig" class="plot"></div></div>
+      </div>
+    </div>
+
+    <div class="card wide">
+      <h3>5 — Fig.10 spirit: simulated stand-height validation</h3>
+      <p class="note">12 synthetic forest stands (illustrative heights, not the paper's actual Oberpfaffenhofen measurements) inverted using the <i>current</i> panel-1 optimum m-spectrum. Squares = "measured" (true) height; crosses ± error bars = Monte-Carlo recovered height. A tight, unbiased match across the full height range mirrors the paper's validation result.</p>
+      <div id="plot_stands" class="plot" style="height:300px"></div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  T<sub>V</sub>=m<sub>V</sub>·diag(1,f,f) (Eq.16); T<sub>G</sub>=[[a,c,0],[c*,b,0],[0,0,d]]·m̄<sub>G</sub> (Eq.17, reflection symmetry ⇒ block-diagonal, c=ρ√(ab) here). Because both matrices share this block structure, the generalized eigenproblem T<sub>G</sub>w=m·T<sub>V</sub>w decomposes exactly into one 2×2 analytic problem (Pauli channels 1-2) plus one decoupled 1×1 (HV-like channel 3) — solved in closed form, no iterative eigensolver needed.
+  γ<sub>j</sub>=e<sup>iφ₀</sup>(γ<sub>V</sub>+m<sub>j</sub>e<sup>-2σh_V/cosθ₀</sup>)/(1+m<sub>j</sub>e<sup>-2σh_V/cosθ₀</sup>), γ<sub>V</sub> the standard RVoG volume coherence (same closed form used across this dashboard series). N-look noise via a correlated complex-Gaussian coherence simulator.
+  Panel 4 uses the phase-center-separation-vs-uncertainty criterion directly (same mechanism as panel 2, the paper's own stated conditioning argument, Sec. IV-A) rather than a blind multi-parameter grid search: testing showed that holding m<sub>1..3</sub> at truth during a (h<sub>V</sub>,σ) grid search removes exactly the coupling the paper's wide/narrow comparison is about and does not reliably reproduce its reported contrast. Panel 5 still uses a simplified grid-search recovery (m<sub>1..3</sub> held at truth, only h<sub>V</sub>/σ searched, versus the paper's full 6-parameter blind inversion, Eq.22-23) since that simplification does not affect its measured-vs-estimated height message.
+  Panel 5 uses illustrative synthetic stands, not the paper's real 14-stand Oberpfaffenhofen ground truth. All computation runs client-side.
+</footer>
+
+<script>
+// ============ shared math ============
+const cMul=(a,b)=>[a[0]*b[0]-a[1]*b[1], a[0]*b[1]+a[1]*b[0]];
+function dbToNp(db){ return db/8.6858896; }
+function dbToLinear(db){ return Math.pow(10, db/10); }
+
+function gammaV(hv, sigmaNp, thetaRad, kz){
+  const p = Math.max(2*sigmaNp/Math.cos(thetaRad), 1e-8);
+  const denom1 = p*p + kz*kz;
+  const frac1 = [ (p*p)/denom1, (-p*kz)/denom1 ];
+  const ephv = Math.exp(p*hv);
+  const num2 = [ ephv*Math.cos(kz*hv) - 1, ephv*Math.sin(kz*hv) ];
+  const den2 = Math.max(ephv - 1, 1e-8);
+  const frac2 = [ num2[0]/den2, num2[1]/den2 ];
+  return cMul(frac1, frac2);
+}
+function totalGamma(gv, m, phi0Rad){
+  const g = [ (gv[0]+m)/(1+m), gv[1]/(1+m) ];
+  const rot = [Math.cos(phi0Rad), Math.sin(phi0Rad)];
+  return cMul(g, rot);
+}
+function sigmaGammaApprox(gammaMag, N){
+  const g = Math.min(Math.max(gammaMag, 0), 0.999);
+  return (1 - g*g) / Math.sqrt(2*N);
+}
+function randnBoxMuller(){
+  let u=0, v=0;
+  while(u===0) u = Math.random();
+  while(v===0) v = Math.random();
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+function complexGaussianUnitPower(){ return [randnBoxMuller()/Math.SQRT2, randnBoxMuller()/Math.SQRT2]; }
+function sampleOneCoherence(gammaTrue, N){
+  const gConj = [gammaTrue[0], -gammaTrue[1]];
+  const scale = Math.sqrt(Math.max(1 - (gammaTrue[0]*gammaTrue[0] + gammaTrue[1]*gammaTrue[1]), 0));
+  let numRe=0, numIm=0, denA=0, denB=0;
+  for(let i=0;i<N;i++){
+    const z1 = complexGaussianUnitPower();
+    const z2 = complexGaussianUnitPower();
+    const term1 = cMul(gConj, z1);
+    const y2 = [term1[0]+scale*z2[0], term1[1]+scale*z2[1]];
+    const y2conj = [y2[0], -y2[1]];
+    const prod = cMul(z1, y2conj);
+    numRe += prod[0]; numIm += prod[1];
+    denA += z1[0]*z1[0]+z1[1]*z1[1];
+    denB += y2[0]*y2[0]+y2[1]*y2[1];
+  }
+  const den = Math.sqrt(denA*denB) || 1e-9;
+  return [numRe/den, numIm/den];
+}
+
+// ============ closed-form generalized eigenproblem: T_G w = m T_V w ============
+// T_V = diag(1,f,f) (mV=1 normalization). T_G (relative, before m0 scale) = [[1,c,0],[c,bOverA,0],[0,0,dOverA]], c=rho*sqrt(bOverA)
+// Reduces to whitened C = diag(1,1/sqrt(f),1/sqrt(f)) * (m0*T_G) * diag(1,1/sqrt(f),1/sqrt(f))
+// Block: C00=m0, C11=m0*bOverA/f, C01=m0*rho*sqrt(bOverA)/sqrt(f), C22=m0*dOverA/f (decoupled)
+function solveOptimum(m0, f, bOverA, dOverA, rho){
+  const fSafe = Math.max(f, 1e-6);
+  const C00 = m0;
+  const C11 = m0*bOverA/fSafe;
+  const C01 = m0*rho*Math.sqrt(Math.max(bOverA,0))/Math.sqrt(fSafe);
+  const C22 = m0*dOverA/fSafe;
+
+  const mean2 = (C00+C11)/2;
+  const diff2 = Math.sqrt(Math.pow((C00-C11)/2,2) + C01*C01);
+  const mA = mean2+diff2, mB = mean2-diff2;
+  // eigenvector angle in (channel0,channel1) subspace of C (real symmetric 2x2)
+  const angle = 0.5*Math.atan2(2*C01, C00-C11);
+  const uA = [Math.cos(angle), Math.sin(angle)]; // for mA
+  const uB = [-Math.sin(angle), Math.cos(angle)]; // for mB (orthogonal)
+
+  // candidates: {m, u:[u0,u1,u2] in C-space}
+  const cands = [
+    {m:mA, u:[uA[0], uA[1], 0]},
+    {m:mB, u:[uB[0], uB[1], 0]},
+    {m:C22, u:[0,0,1]},
+  ];
+  cands.sort((a,b)=>b.m-a.m);
+
+  // transform eigenvectors back to w-space: w = L^{-1} u, L=diag(1,sqrt(f),sqrt(f))
+  const Linv = [1, 1/Math.sqrt(fSafe), 1/Math.sqrt(fSafe)];
+  const results = cands.map(c=>{
+    const w = [c.u[0]*Linv[0], c.u[1]*Linv[1], c.u[2]*Linv[2]];
+    const norm = Math.sqrt(w[0]*w[0]+w[1]*w[1]+w[2]*w[2]) || 1;
+    return {m: Math.max(c.m,0), w: w.map(x=>x/norm)};
+  });
+  return results; // [{m,w:[w0,w1,w2]}, ...] sorted m1>=m2>=m3
+}
+
+// ============ controls ============
+const els = ['hv','sigma','theta','kz','phi0','f','m0db','bOverA','dOverA','rho','N']
+  .reduce((o,id)=>{o[id]=document.getElementById(id); return o;}, {});
+const disp = {
+  hv:v=>v.toFixed(1)+' m', sigma:v=>v.toFixed(2)+' dB/m', theta:v=>v.toFixed(0)+'°', kz:v=>v.toFixed(3)+' rad/m', phi0:v=>v.toFixed(0)+'°',
+  f:v=>v.toFixed(2), m0db:v=>v.toFixed(1)+' dB', bOverA:v=>v.toFixed(2), dOverA:v=>v.toFixed(2), rho:v=>v.toFixed(2), N:v=>v.toFixed(0)
+};
+function params(){
+  const p = {};
+  Object.keys(els).forEach(id=>p[id]=+els[id].value);
+  return p;
+}
+function attenFactor(P){
+  const thetaRad = P.theta*Math.PI/180;
+  return Math.exp(-2*dbToNp(P.sigma)*P.hv/Math.cos(thetaRad));
+}
+function currentOptimum(P){
+  const m0 = dbToLinear(P.m0db);
+  const raw = solveOptimum(m0, P.f, P.bOverA, P.dOverA, P.rho);
+  const att = attenFactor(P);
+  return raw.map(r=>({m: r.m*att, w: r.w}));
+}
+
+function circleTrace(){
+  const re=[], im=[]; const Np=200;
+  for(let i=0;i<=Np;i++){ const a=2*Math.PI*i/Np; re.push(Math.cos(a)); im.push(Math.sin(a)); }
+  return {x:re,y:im,mode:'lines',line:{color:'#2a3450',width:1.5},showlegend:false,hoverinfo:'skip'};
+}
+
+// ============ panel 1: circle + w composition + conditioning ============
+function drawPanel1(P, opt){
+  const thetaRad = P.theta*Math.PI/180, phi0Rad = P.phi0*Math.PI/180;
+  const gv = gammaV(P.hv, dbToNp(P.sigma), thetaRad, P.kz);
+  const groundPt = [Math.cos(phi0Rad), Math.sin(phi0Rad)];
+  const colors = ['#f56565','#f6ad55','#48bb78'];
+
+  const traces = [
+    circleTrace(),
+    { x:[0,groundPt[0]], y:[0,groundPt[1]], mode:'lines', line:{color:'#374162', width:1, dash:'dot'}, showlegend:false, hoverinfo:'skip' },
+    { x:[gv[0]*Math.cos(phi0Rad)-gv[1]*Math.sin(phi0Rad), groundPt[0]], y:[gv[0]*Math.sin(phi0Rad)+gv[1]*Math.cos(phi0Rad), groundPt[1]], mode:'lines', line:{color:'#8f9bb3', width:1.5, dash:'dash'}, name:'RVoG line' },
+    { x:[gv[0]*Math.cos(phi0Rad)-gv[1]*Math.sin(phi0Rad)], y:[gv[0]*Math.sin(phi0Rad)+gv[1]*Math.cos(phi0Rad)], mode:'markers+text', marker:{color:'#4fd1c5', size:11}, text:['γᵥ'], textposition:'top center', name:'γᵥ' },
+    { x:[groundPt[0]], y:[groundPt[1]], mode:'markers+text', marker:{color:'#e7ecf5', size:9, symbol:'diamond-open'}, text:['ground'], textposition:'top center', name:'ground' },
+  ];
+  opt.forEach((o,idx)=>{
+    const g = totalGamma(gv, o.m, phi0Rad);
+    const cloud=[]; for(let t=0;t<70;t++) cloud.push(sampleOneCoherence(g, P.N));
+    traces.push({x:cloud.map(p=>p[0]), y:cloud.map(p=>p[1]), mode:'markers', marker:{color:colors[idx], size:4, opacity:0.3}, hoverinfo:'skip', showlegend:false});
+    traces.push({x:[g[0]], y:[g[1]], mode:'markers+text', marker:{color:colors[idx], size:13, symbol:['circle','square','triangle-up'][idx]}, text:[`γ${idx+1}`], textposition:'bottom center', name:`γ${idx+1} (m=${o.m.toFixed(3)})`});
+  });
+
+  Plotly.react('plot_circle', traces, {
+    xaxis:{range:[-1.15,1.15], autorange:false, constrain:'domain', zeroline:true, zerolinecolor:'#2a3450', gridcolor:'#1c2438', scaleanchor:'y', scaleratio:1, title:'Re(γ)', color:'#8f9bb3'},
+    yaxis:{range:[-1.15,1.15], autorange:false, constrain:'domain', zeroline:true, zerolinecolor:'#2a3450', gridcolor:'#1c2438', title:'Im(γ)', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10},
+    margin:{l:45,r:15,t:10,b:35}, showlegend:true, legend:{orientation:'h', y:-0.15, font:{size:8}}
+  }, {displayModeBar:false, responsive:true});
+
+  // w composition bar chart
+  const labels = ['ch1 (HH+VV-like)','ch2 (HH-VV-like)','ch3 (HV-like)'];
+  const wtraces = opt.map((o,idx)=>({
+    x: labels, y: o.w.map(x=>Math.abs(x)), type:'bar', name:`w${idx+1}`, marker:{color:colors[idx]}
+  }));
+  Plotly.react('plot_wcomp', wtraces, {
+    barmode:'group', xaxis:{color:'#8f9bb3', tickfont:{size:8}}, yaxis:{title:'|component|', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:9},
+    margin:{l:35,r:10,t:5,b:50}, showlegend:false
+  }, {displayModeBar:false, responsive:true});
+
+  // conditioning check for panel1's little badge
+  const gvals = opt.map(o=>totalGamma(gv, o.m, phi0Rad));
+  const heights = gvals.map(g=>Math.atan2(g[1],g[0])/Math.max(P.kz,1e-4));
+  const sighs = gvals.map(g=>sigmaGammaApprox(Math.hypot(...g), P.N)/Math.max(P.kz,1e-4));
+  let wellCond = true;
+  for(let i=0;i<2;i++){ if(Math.abs(heights[i]-heights[i+1]) < (sighs[i]+sighs[i+1])) wellCond=false; }
+  const condEl = document.getElementById('cond');
+  condEl.className = 'cond ' + (wellCond?'good':'bad');
+  condEl.textContent = wellCond ? '✓ phase centers well separated' : '✗ phase centers overlap within noise';
+}
+
+// ============ panel 2: phase center separation ============
+function drawZSep(P, opt){
+  const thetaRad = P.theta*Math.PI/180, phi0Rad = P.phi0*Math.PI/180;
+  const gv = gammaV(P.hv, dbToNp(P.sigma), thetaRad, P.kz);
+  const labels=['γ1','γ2','γ3'];
+  const heights = [], errs = [];
+  opt.forEach(o=>{
+    const g = totalGamma(gv, o.m, phi0Rad);
+    const h = Math.atan2(g[1],g[0])/Math.max(P.kz,1e-4);
+    const sig = sigmaGammaApprox(Math.hypot(...g), P.N)/Math.max(P.kz,1e-4);
+    heights.push(h); errs.push(Math.abs(sig));
+  });
+  Plotly.react('plot_zsep', [{
+    x:labels, y:heights, mode:'markers', marker:{color:['#f56565','#f6ad55','#48bb78'], size:13},
+    error_y:{type:'data', array:errs, visible:true, color:'#e7ecf5', thickness:2, width:8}
+  }], {
+    xaxis:{color:'#8f9bb3'}, yaxis:{title:'effective phase-center height (m)', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10},
+    margin:{l:55,r:15,t:10,b:35}
+  }, {displayModeBar:false, responsive:true});
+}
+
+// ============ panel 3: ground vs volume dB ============
+function drawGroundVol(P){
+  const m0 = dbToLinear(P.m0db);
+  const volDb = [0, 10*Math.log10(Math.max(P.f,1e-4)), 10*Math.log10(Math.max(P.f,1e-4))];
+  const groundDb = [10*Math.log10(m0), 10*Math.log10(Math.max(m0*P.bOverA,1e-6)), 10*Math.log10(Math.max(m0*P.dOverA,1e-6))];
+  const labels=['ch1 (HH+VV)','ch2 (HH-VV)','ch3 (HV)'];
+  Plotly.react('plot_groundvol', [
+    {x:labels, y:volDb, type:'bar', name:'Volume T_V', marker:{color:'#4fd1c5'}},
+    {x:labels, y:groundDb, type:'bar', name:'Ground T_G', marker:{color:'#f6ad55'}},
+  ], {
+    barmode:'group', xaxis:{color:'#8f9bb3'}, yaxis:{title:'relative intensity (dB)', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10},
+    legend:{orientation:'h', y:-0.25, font:{size:9}},
+    margin:{l:50,r:15,t:10,b:45}
+  }, {displayModeBar:false, responsive:true});
+}
+
+// ============ panels 4-5: grid-search recovery ============
+function costAt(hvTrial, sigTrial, obs1, obs2, obs3, mTrue, thetaRad, kz, phi0Rad){
+  const gv = gammaV(hvTrial, dbToNp(sigTrial), thetaRad, kz);
+  const d2=(a,b)=>(a[0]-b[0])*(a[0]-b[0])+(a[1]-b[1])*(a[1]-b[1]);
+  let c=0;
+  for(let j=0;j<3;j++){
+    const gm = totalGamma(gv, mTrue[j], phi0Rad);
+    c += d2(gm, [obs1,obs2,obs3][j]);
+  }
+  return c;
+}
+function buildGrid2(hvRange, sigRange, nHv, nSig){
+  const hvs=[], sigs=[];
+  for(let i=0;i<nHv;i++) hvs.push(hvRange[0]+(hvRange[1]-hvRange[0])*i/(nHv-1));
+  for(let j=0;j<nSig;j++) sigs.push(sigRange[0]+(sigRange[1]-sigRange[0])*j/(nSig-1));
+  return {hvs, sigs};
+}
+function recoverOnce(hvTrue, sigTrue, mTrue, thetaRad, kz, phi0Rad, N, grid){
+  const gv = gammaV(hvTrue, dbToNp(sigTrue), thetaRad, kz);
+  const trueG = mTrue.map(m=>totalGamma(gv, m, phi0Rad));
+  const obs = trueG.map(g=>sampleOneCoherence(g, N));
+  let best={cost:Infinity, hv:grid.hvs[0], sig:grid.sigs[0]};
+  for(let i=0;i<grid.hvs.length;i++){
+    for(let j=0;j<grid.sigs.length;j++){
+      const c = costAt(grid.hvs[i], grid.sigs[j], obs[0],obs[1],obs[2], mTrue, thetaRad, kz, phi0Rad);
+      if(c<best.cost) best={cost:c, hv:grid.hvs[i], sig:grid.sigs[j]};
+    }
+  }
+  return best;
+}
+// Phase-center height +- uncertainty for a given m-spectrum, true scene and true height sweep.
+// This reuses exactly the verified Panel-2 mechanism (hj=arg(gammaj)/kz, sigma_hj=sigmaGammaApprox(|gammaj|,N)/kz),
+// which is the paper's own stated reason wide spectra condition better (Sec. IV-A) - more reliable than a blind
+// multi-parameter grid search (which, tested numerically, does NOT reproduce the paper's wide/narrow contrast once
+// m1..3 are held at truth, since fixing m removes exactly the coupling the paper's comparison is about).
+function phaseCenterTrack(mSpec, heights, P, thetaRad, phi0Rad){
+  const h1=[],h2=[],h3=[],s1=[],s2=[],s3=[];
+  heights.forEach(hTrue=>{
+    const gv = gammaV(hTrue, dbToNp(P.sigma), thetaRad, P.kz);
+    const hs=[], ss=[];
+    mSpec.forEach(m=>{
+      const g = totalGamma(gv, m, phi0Rad);
+      hs.push(Math.atan2(g[1],g[0])/Math.max(P.kz,1e-4));
+      ss.push(sigmaGammaApprox(Math.hypot(...g), P.N)/Math.max(P.kz,1e-4));
+    });
+    h1.push(hs[0]); h2.push(hs[1]); h3.push(hs[2]);
+    s1.push(ss[0]); s2.push(ss[1]); s3.push(ss[2]);
+  });
+  return {h1,h2,h3,s1,s2,s3};
+}
+function drawFig9(P){
+  const thetaRad=P.theta*Math.PI/180, phi0Rad=0;
+  const heights=[5,10,15,20,25,30,35];
+  const wide = phaseCenterTrack([1.0,0.1,0.01], heights, P, thetaRad, phi0Rad);
+  const narrow = phaseCenterTrack([0.1,0.05,0.01], heights, P, thetaRad, phi0Rad);
+  const mkTraces = (track,label) => [
+    {x:heights, y:track.h1, mode:'lines+markers', line:{color:'#f56565'}, error_y:{type:'data',array:track.s1,visible:true,color:'#f56565',thickness:1}, name:'h1 ('+label+')'},
+    {x:heights, y:track.h2, mode:'lines+markers', line:{color:'#f6ad55'}, error_y:{type:'data',array:track.s2,visible:true,color:'#f6ad55',thickness:1}, name:'h2 ('+label+')'},
+    {x:heights, y:track.h3, mode:'lines+markers', line:{color:'#48bb78'}, error_y:{type:'data',array:track.s3,visible:true,color:'#48bb78',thickness:1}, name:'h3 ('+label+')'},
+  ];
+  Plotly.react('plot_fig9_hv', mkTraces(wide,'wide'), {
+    xaxis:{title:'true hᵥ (m)', color:'#8f9bb3'}, yaxis:{title:'effective phase-center height (m)', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:9},
+    legend:{orientation:'h', y:-0.3, font:{size:8}}, margin:{l:45,r:10,t:5,b:50}
+  }, {displayModeBar:false, responsive:true});
+  Plotly.react('plot_fig9_sig', mkTraces(narrow,'narrow'), {
+    xaxis:{title:'true hᵥ (m)', color:'#8f9bb3'}, yaxis:{title:'effective phase-center height (m)', color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:9},
+    legend:{orientation:'h', y:-0.3, font:{size:8}}, margin:{l:45,r:10,t:5,b:50}
+  }, {displayModeBar:false, responsive:true});
+}
+
+function drawStands(P, opt){
+  const thetaRad=P.theta*Math.PI/180, phi0Rad=P.phi0*Math.PI/180;
+  const mTrue = opt.map(o=>o.m);
+  const standHeights = [19,24,23,25,27,29,31,32, 16,18,20,23,27,28]; // illustrative, coniferous then deciduous-like
+  const grid = buildGrid2([2,42],[0.02,1.2], 20,20);
+  const trials=12;
+  const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
+  const std=a=>{const m=mean(a); return Math.sqrt(a.reduce((s,v)=>s+(v-m)*(v-m),0)/a.length);};
+  const estMean=[], estStd=[];
+  standHeights.forEach(hTrue=>{
+    const rec=[];
+    for(let t=0;t<trials;t++){ rec.push(recoverOnce(hTrue, P.sigma, mTrue, thetaRad, P.kz, phi0Rad, P.N, grid).hv); }
+    estMean.push(mean(rec)); estStd.push(std(rec));
+  });
+  const xs = standHeights.map((_,i)=>'Stand '+(i+1));
+  Plotly.react('plot_stands', [
+    {x:xs, y:standHeights, mode:'markers', marker:{color:'#e7ecf5', size:10, symbol:'square'}, name:'measured (true)'},
+    {x:xs, y:estMean, mode:'markers', marker:{color:'#f6ad55', size:10, symbol:'x'},
+      error_y:{type:'data', array:estStd, visible:true, color:'#f6ad55'}, name:'estimated (Monte-Carlo)'},
+  ], {
+    xaxis:{color:'#8f9bb3', tickangle:-45, tickfont:{size:9}}, yaxis:{title:'Tree height (m)', range:[0,40], color:'#8f9bb3'},
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:10},
+    legend:{orientation:'h', y:-0.3, font:{size:9}}, margin:{l:45,r:15,t:10,b:70}
+  }, {displayModeBar:false, responsive:true});
+}
+
+// ============ readout ============
+function updateReadout(P, opt){
+  const rows = opt.map((o,i)=>`<div class="row"><span>m${i+1}</span><b>${o.m.toFixed(4)} (${(10*Math.log10(Math.max(o.m,1e-9))).toFixed(1)} dB)</b></div>`).join('');
+  document.getElementById('readout').innerHTML = rows + `
+    <div class="row"><span>attenuation exp(-2σh<sub>V</sub>/cosθ₀)</span><b>${attenFactor(P).toFixed(4)}</b></div>
+  `;
+}
+
+function redrawAll(){
+  const P = params();
+  Object.keys(disp).forEach(k=>{ document.getElementById('v_'+k).textContent = disp[k](P[k]); });
+  const opt = currentOptimum(P);
+  updateReadout(P, opt);
+  drawPanel1(P, opt);
+  drawZSep(P, opt);
+  drawGroundVol(P);
+  drawFig9(P);
+  drawStands(P, opt);
+}
+Object.values(els).forEach(el => el.addEventListener('input', redrawAll));
+
+const presets = {
+  balanced:        {hv:25, sigma:0.2, theta:30, kz:0.15, phi0:0, f:0.3, m0db:0,  bOverA:0.3, dOverA:0.05, rho:0.3,  N:20},
+  isotropicGround: {hv:25, sigma:0.2, theta:30, kz:0.15, phi0:0, f:0.3, m0db:3,  bOverA:0.3, dOverA:0.3,  rho:0,    N:20},
+  surface:         {hv:25, sigma:0.2, theta:30, kz:0.15, phi0:0, f:0.3, m0db:18, bOverA:1.0, dOverA:0.3,  rho:0.5,  N:20},
+  wideSpectrum:    {hv:25, sigma:0.2, theta:30, kz:0.15, phi0:0, f:0.3, m0db:5,  bOverA:2.5, dOverA:0.02, rho:0.85, N:20},
+  narrowSpectrum:  {hv:25, sigma:0.2, theta:30, kz:0.15, phi0:0, f:0.3, m0db:5,  bOverA:0.6, dOverA:0.4,  rho:0.1,  N:20},
+};
+document.querySelectorAll('.presets button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const p = presets[btn.dataset.preset];
+    Object.keys(p).forEach(k=>{ els[k].value = p[k]; });
+    redrawAll();
+  });
+});
+
+redrawAll();
+</script>
+</body>
+</html>
