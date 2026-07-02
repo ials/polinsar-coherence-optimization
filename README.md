@@ -31,6 +31,19 @@ overestimate canopy height, and how each compensation strategy fixes it. Reprodu
 paper's real accuracy/efficiency numbers from AfriSAR Gabon mangrove validation (canopy up to
 65 m, 4602 LiDAR RH100 points).
 
+### [Multi-Baseline Forest Height — Analytic + Geometric RVoG](multibaseline-rvog-forest-height.html)
+> B. Zhang, H. Zhu, W. Song, J. Zhu, J. Dai, J. Zhang, C. Li, *Forests* 2024, 15, 1496.
+
+Reconstructs the paper's multi-baseline RVoG framework: each interferometric baseline traces
+its own straight coherence locus in the unit circle, and noisy observations scatter into an
+elliptical coherence region whose eccentricity is used to select the most trustworthy
+reference baseline. Rather than discarding the other baselines, their geometric constraints
+(perpendicular distance to each baseline's own fitted line) are minimized jointly with the
+reference baseline's analytic RVoG fit — shown live, with an empirically-tuned cost function,
+to sharpen and stabilize the height estimate versus single- or dual-baseline alternatives.
+Reproduces the paper's real validation numbers from the Mabounie (AfriSAR) and Krycklan sites
+(RMSE improved 39% and 17% respectively over the traditional optimal-single-baseline method).
+
 ## Running locally
 
 Each dashboard is a single self-contained HTML file. It only requires internet access once,

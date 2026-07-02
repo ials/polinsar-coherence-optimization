@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-Baseline RVoG Forest Height — Zhang et al. 2024</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#161d2e; --panel2:#1c2438; --text:#e7ecf5; --muted:#8f9bb3;
+    --accent:#4fd1c5; --accent2:#f6ad55; --border:#2a3450;
+    --c1:#f56565; --c2:#f6ad55; --c3:#48bb78; --c4:#63b3ed; --v:#b794f4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text);}
+  header{padding:18px 26px; border-bottom:1px solid var(--border); background:linear-gradient(180deg,#161d2e,#0f1420);}
+  header h1{margin:0 0 4px 0; font-size:19px; font-weight:600;}
+  header p{margin:0; color:var(--muted); font-size:12.8px; max-width:1080px; line-height:1.5;}
+  header p.cite{margin-top:7px; font-size:11.3px; color:#6f7c99;}
+  .layout{display:flex; gap:14px; padding:14px 18px; align-items:flex-start;}
+  .controls{flex:0 0 250px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:13px; position:sticky; top:14px; max-height:calc(100vh - 28px); overflow-y:auto;}
+  .controls h2{font-size:11px; margin:13px 0 8px 0; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border); padding-bottom:5px;}
+  .controls h2:first-child{margin-top:0;}
+  .ctrl{margin-bottom:10px;}
+  .ctrl label{display:flex; flex-wrap:wrap; justify-content:space-between; gap:2px 6px; font-size:11.3px; margin-bottom:5px; color:var(--text); line-height:1.25;}
+  .ctrl label span.val{color:var(--accent2); font-variant-numeric:tabular-nums; font-weight:600; white-space:nowrap;}
+  .ctrl input[type=range]{width:100%; accent-color:var(--accent);}
+  .ctrl select{width:100%; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:4px; font-size:11px;}
+  .ctrl .hint{font-size:9.8px; color:var(--muted); margin-top:3px; line-height:1.3;}
+  .presets{display:flex; flex-direction:column; gap:5px; margin-top:5px; margin-bottom:5px;}
+  .presets button{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 7px; font-size:10.8px; cursor:pointer; text-align:left;}
+  .presets button:hover{border-color:#8f9bb3;}
+  .presets button.active{border-color:var(--accent); color:var(--accent);}
+  .btn-row{display:flex; gap:6px; margin-top:6px;}
+  .btn-row button{flex:1; background:var(--accent); color:#0f1420; border:none; border-radius:6px; padding:7px; font-size:11px; font-weight:700; cursor:pointer;}
+  .btn-row button.secondary{background:var(--panel2); color:var(--text); border:1px solid var(--border); font-weight:600;}
+  .readout{background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:9px 10px; margin-top:5px; font-size:10.8px; line-height:1.55;}
+  .readout .row{display:flex; justify-content:space-between; gap:6px;}
+  .readout .row b{color:var(--accent); text-align:right;}
+  .grid{flex:1; display:grid; grid-template-columns:1fr 1fr; gap:16px; min-width:0;}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px 4px;}
+  .card.wide{grid-column:1 / -1;}
+  .card h3{font-size:13px; margin:2px 4px 2px; color:var(--text); font-weight:600;}
+  .card p.note{font-size:11.3px; color:var(--muted); margin:0 4px 8px; line-height:1.42;}
+  .plot{width:100%; height:360px;}
+  .plot.short{height:300px;}
+  .plot.tall{height:420px;}
+  .legendline{display:flex; flex-wrap:wrap; gap:10px; font-size:10.8px; color:var(--muted); margin:0 4px 6px;}
+  .legendline span.sw{display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:4px; vertical-align:-2px;}
+  .cond{padding:8px 12px; border-radius:8px; font-size:11.8px; font-weight:600; margin:6px 4px;}
+  .cond.good{background:rgba(72,187,120,0.15); color:var(--c3); border:1px solid var(--c3);}
+  .cond.bad{background:rgba(245,101,101,0.15); color:var(--c1); border:1px solid var(--c1);}
+  .cond.info{background:rgba(99,179,237,0.12); color:var(--c4); border:1px solid var(--c4);}
+  table.eq{border-collapse:collapse; font-size:11px; margin:4px;}
+  table.eq td{padding:3px 8px; border-bottom:1px solid var(--border); color:var(--text);}
+  table.eq td.k{color:var(--muted); text-align:right;}
+  footer{padding:16px 26px 32px; color:var(--muted); font-size:11.3px; border-top:1px solid var(--border); margin-top:8px; line-height:1.55;}
+  footer h4{color:var(--text); font-size:12px; margin:14px 0 4px;}
+  footer ul{margin:4px 0 0 18px; padding:0;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Multi-Baseline Forest Height Estimation — Analytic + Geometric RVoG (Zhang et al., 2024)</h1>
+  <p>Illustrates the paper's core claims about the random-volume-over-ground (RVoG) model under a <b>multi-baseline</b> PolInSAR configuration: each interferometric baseline traces its own straight
+  <i>coherence locus</i> in the unit circle (Eq. 1–4); real, noisy observations scatter around that line into an elliptical "coherence region" whose eccentricity indicates how trustworthy that baseline is
+  (Eqs. 13–18); and because the ground-to-volume amplitude ratio can be normalized consistently across baselines (Eqs. 8–10), the <i>other</i> baselines can be converted into geometric constraints that are
+  jointly minimized together with the reference baseline's analytic RVoG fit (Eqs. 19–29) — instead of throwing that information away, as "pick-one-optimal-baseline" methods do.</p>
+  <p class="cite">Source: B. Zhang, H. Zhu, W. Song, J. Zhu, J. Dai, J. Zhang, C. Li, "A Multi-Baseline Forest Height Estimation Method Combining Analytic and Geometric Expression of the RVoG Model,"
+  Forests 2024, 15, 1496 (forests-ruiz.pdf provided by the user).</p>
+</header>
+
+<div class="layout">
+  <div class="controls">
+
+    <h2>Scenario preset</h2>
+    <div class="presets" id="presetButtons">
+      <button data-preset="mabounie">Mabounie tropical rainforest (P-band, AfriSAR)</button>
+      <button data-preset="krycklan">Krycklan coniferous forest (P-band, airborne)</button>
+      <button data-preset="custom">Custom</button>
+    </div>
+    <div class="hint">Presets set illustrative k<sub>z</sub> values in the ranges the paper reports for each site (Tables 1 &amp; 3); they are not the paper's exact per-pixel values.</div>
+
+    <h2>True forest scene</h2>
+    <div class="ctrl">
+      <label>Forest height h<sub>V</sub> <span class="val" id="v_hv">28 m</span></label>
+      <input type="range" id="hv" min="5" max="55" step="1" value="28">
+    </div>
+    <div class="ctrl">
+      <label>Extinction σ <span class="val" id="v_sigma">3.0 dB/m</span></label>
+      <input type="range" id="sigma" min="0" max="15" step="0.2" value="3.0">
+    </div>
+    <div class="ctrl">
+      <label>Incidence angle θ <span class="val" id="v_theta">35°</span></label>
+      <input type="range" id="theta" min="20" max="50" step="1" value="35">
+    </div>
+    <div class="ctrl">
+      <label>Ground elevation h<sub>g</sub> <span class="val" id="v_hg">3 m</span></label>
+      <input type="range" id="hg" min="-10" max="10" step="0.5" value="3">
+      <div class="hint">Sets each baseline's topographic phase φ0<sup>q</sup> = k<sub>z</sub><sup>q</sup>·h<sub>g</sub> (Eq. 26), so all baselines share one physical ground.</div>
+    </div>
+
+    <h2>Baselines (vertical wavenumbers)</h2>
+    <div class="ctrl">
+      <label>k<sub>z</sub><sup>1</sup> (reference candidate) <span class="val" id="v_kz1">0.030</span></label>
+      <input type="range" id="kz1" min="0.005" max="0.30" step="0.005" value="0.030">
+    </div>
+    <div class="ctrl">
+      <label>k<sub>z</sub><sup>2</sup> <span class="val" id="v_kz2">0.070</span></label>
+      <input type="range" id="kz2" min="0.005" max="0.30" step="0.005" value="0.070">
+    </div>
+    <div class="ctrl">
+      <label>k<sub>z</sub><sup>3</sup> <span class="val" id="v_kz3">0.095</span></label>
+      <input type="range" id="kz3" min="0.005" max="0.30" step="0.005" value="0.095">
+    </div>
+
+    <h2>Observation noise</h2>
+    <div class="ctrl">
+      <label>Looks N <span class="val" id="v_N">25</span></label>
+      <input type="range" id="N" min="5" max="150" step="1" value="25">
+      <div class="hint">Fewer looks &#8594; noisier per-polarization coherence samples &#8594; more scattered coherence region &#8594; lower eccentricity.</div>
+    </div>
+    <div class="btn-row">
+      <button id="resample">Resample noise</button>
+    </div>
+
+    <div class="readout" id="readout"></div>
+  </div>
+
+  <div class="grid">
+
+    <div class="card wide">
+      <h3>1. RVoG coherence loci under a multi-baseline configuration (Fig. 1)</h3>
+      <p class="note">Each baseline's coherence locus is a straight line from e<sup>iφ0</sup>γ<sub>V</sub> (pure volume, m=0) to e<sup>iφ0</sup> (pure ground, m=∞); polarization diversity moves the observed point
+      along that line (Eq. 4). Markers are simulated N-look noisy samples for several polarization channels per baseline; dashed lines are the theoretical loci. Different k<sub>z</sub> gives each baseline a
+      different slope/position even though the scene (h<sub>V</sub>, σ, h<sub>g</sub>) is identical — the "ideal" (b) vs "real, noisy" (c) contrast from Figure 1.</p>
+      <div id="plotLoci" class="plot tall"></div>
+    </div>
+
+    <div class="card">
+      <h3>2. Coherence-region eccentricity &amp; baseline selection (Eqs. 13–18)</h3>
+      <p class="note">A flatter, more elongated ("linear") noisy point cloud &#8594; higher eccentricity &#8594; a baseline whose line-fit (and hence φ0, γ<sub>V</sub>) can be trusted more. The paper selects the
+      baseline of largest eccentricity as the <b>reference</b> baseline for the analytic RVoG fit; the rest become geometric-constraint baselines.</p>
+      <div id="plotEcc" class="plot"></div>
+      <div id="refBanner"></div>
+    </div>
+
+    <div class="card">
+      <h3>3. Single-baseline fit vs. added geometric constraints</h3>
+      <p class="note">Holding σ at its (assumed known) true value, sweeping a candidate forest height h<sub>V</sub>′ predicts a pure-volume point under each baseline's own k<sub>z</sub> (Eq. 2). "Reference baseline
+      only" fits h<sub>V</sub>′ against all of that one baseline's own noisy polarization samples (Eq. 25/27/29, Q=1) — already fairly well-behaved once σ is known. Adding the perpendicular distance to a
+      Cloude-style single extra baseline's line, or to <i>every</i> other baseline's line at once (Eq. 19–24, 29), further sharpens and stabilizes the minimum, especially at low look counts — try lowering
+      "Looks N" and clicking "Resample noise" repeatedly to see the proposed (teal) curve track the true height more consistently than either single-baseline alternative.</p>
+      <div id="plotCost" class="plot"></div>
+    </div>
+
+    <div class="card wide">
+      <h3>4. Estimated vs. true forest height, by method</h3>
+      <p class="note">Argmin of each cost curve in panel 3, compared against the true h<sub>V</sub> set in the sidebar. Click "Resample noise" a few times at a low look count to see how the reference-only
+      estimate swings around while the multi-baseline estimate stays comparatively close to the truth — the mechanism behind the paper's reported accuracy gains.</p>
+      <div id="plotEstBar" class="plot short"></div>
+    </div>
+
+    <div class="card wide">
+      <h3>5. Reported validation results (real numbers from the paper, Sections 4–5)</h3>
+      <p class="note">These bars are <b>not</b> reproduced from the paper's PolInSAR imagery (not provided) — they are the paper's own published RMSE/R² figures from LiDAR cross-validation against 1170
+      (Mabounie) and 1318 (Krycklan) forest sample plots, comparing the "traditional" optimal-single-baseline method against the paper's proposed joint analytic+geometric multi-baseline method.</p>
+      <div id="plotValidation" class="plot short"></div>
+      <div class="legendline" id="validationNotes"></div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <h4>What is exact vs. illustrative here</h4>
+  <ul>
+    <li><b>Exact, from the paper's equations:</b> the RVoG volume decoherence γ<sub>V</sub>(h<sub>V</sub>,σ,θ,k<sub>z</sub>) (Eq. 2); the coherence-line construction γ(w) = e<sup>iφ0</sup>(γ<sub>V</sub> + L(w)(1&minus;γ<sub>V</sub>)) (Eq. 4); the reduction of per-baseline surface phase to one shared ground elevation h<sub>g</sub> via φ0<sup>q</sup> = k<sub>z</sub><sup>q</sup>h<sub>g</sub> (Eq. 26); the perpendicular point-to-line distance used for the geometric constraint (Eq. 20/23); and the RMSE/R² numbers in panel 5, taken directly from the paper's Figures 8 and 10.</li>
+    <li><b>Faithful simplification:</b> the paper's eccentricity criterion (Eqs. 13–18) is computed from a Schur decomposition of a 6×6 polarimetric coherency matrix Π built from all polarization channels at once. This dashboard instead simulates N-look noisy samples at a handful of representative polarization points per baseline and computes the eccentricity of their 2D (Re, Im) covariance ellipse — the same geometric idea (how elongated/linear the coherence region is), computed from simulated samples rather than a real polarimetric covariance matrix.</li>
+    <li><b>Simplified for interactivity:</b> panel 3 fixes the extinction σ at its true/assumed value and sweeps only h<sub>V</sub>, whereas the paper's actual algorithm jointly solves for both h<sub>V</sub> and σ (plus the reference baseline's normalized ground-to-volume ratio) by nonlinear least squares (Eq. 28–29). Fixing σ isolates and visualizes the cross-baseline geometric-consistency mechanism (why multiple k<sub>z</sub> values pin down height better) without requiring a full 2-D nonlinear solver in the browser.</li>
+    <li><b>Illustrative, not the paper's real imagery:</b> panels 1–4 use a synthetic scene and simulated N-look coherence noise (same complex-Gaussian sample-coherence model used in the other PolInSAR dashboards in this series) — the paper's real AfriSAR/Krycklan PolInSAR datasets are not redistributed here. Only panel 5's bars are the paper's own reported numbers.</li>
+  </ul>
+</footer>
+
+<script>
+// ── Complex helpers ──────────────────────────────────────────────────────
+const cMul=(a,b)=>[a[0]*b[0]-a[1]*b[1], a[0]*b[1]+a[1]*b[0]];
+const cAdd=(a,b)=>[a[0]+b[0], a[1]+b[1]];
+const cScale=(a,s)=>[a[0]*s, a[1]*s];
+const dbToNp = db => db/8.6858896;
+
+// gammaV(hv, sigmaNp, thetaRad, kz) -> [re, im]   (Eq. 2)
+function gammaV(hv, sigmaNp, thetaRad, kz){
+  const p = Math.max(2*sigmaNp/Math.cos(thetaRad), 1e-8);
+  const denom1 = p*p + kz*kz;
+  const frac1 = [ (p*p)/denom1, (-p*kz)/denom1 ];
+  const ephv = Math.exp(p*hv);
+  const num2 = [ ephv*Math.cos(kz*hv) - 1, ephv*Math.sin(kz*hv) ];
+  const den2 = Math.max(ephv - 1, 1e-8);
+  const frac2 = [ num2[0]/den2, num2[1]/den2 ];
+  return cMul(frac1, frac2);
+}
+// total gamma(w) = e^{i phi0} * (gv + m)/(1+m)      (Eq. 1 / Eq. 4 with L = m/(1+m))
+function totalGamma(gv, m, phi0Rad){
+  const g = [ (gv[0]+m)/(1+m), gv[1]/(1+m) ];
+  const rot = [Math.cos(phi0Rad), Math.sin(phi0Rad)];
+  return cMul(g, rot);
+}
+
+function randnBoxMuller(){
+  let u=0, v=0;
+  while(u===0) u = Math.random();
+  while(v===0) v = Math.random();
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+function complexGaussianUnitPower(){
+  return [randnBoxMuller()/Math.SQRT2, randnBoxMuller()/Math.SQRT2];
+}
+// One noisy N-look sample-coherence realization of a true complex coherence gammaTrue.
+function noisySample(gammaTrue, N){
+  const gConj = [gammaTrue[0], -gammaTrue[1]];
+  const scale = Math.sqrt(Math.max(1 - (gammaTrue[0]*gammaTrue[0] + gammaTrue[1]*gammaTrue[1]), 0));
+  let numRe=0, numIm=0, denA=0, denB=0;
+  for(let i=0;i<N;i++){
+    const z1 = complexGaussianUnitPower();
+    const z2 = complexGaussianUnitPower();
+    const term1 = cMul(gConj, z1);
+    const y2 = [term1[0] + scale*z2[0], term1[1] + scale*z2[1]];
+    const y2conj = [y2[0], -y2[1]];
+    const prod = cMul(z1, y2conj);
+    numRe += prod[0]; numIm += prod[1];
+    denA += z1[0]*z1[0] + z1[1]*z1[1];
+    denB += y2[0]*y2[0] + y2[1]*y2[1];
+  }
+  const den = Math.sqrt(Math.max(denA*denB,1e-12));
+  return [numRe/den, numIm/den];
+}
+
+// least-squares line fit Im = M*Re + C through a set of [re,im] points
+function fitLine(points){
+  const n = points.length;
+  let sx=0, sy=0, sxx=0, sxy=0;
+  points.forEach(p=>{ sx+=p[0]; sy+=p[1]; sxx+=p[0]*p[0]; sxy+=p[0]*p[1]; });
+  const denom = n*sxx - sx*sx;
+  if(Math.abs(denom) < 1e-9){
+    return {M:1e6, C:0, vertical:true, xConst:sx/n};
+  }
+  const M = (n*sxy - sx*sy)/denom;
+  const C = (sy - M*sx)/n;
+  return {M, C, vertical:false};
+}
+function distToLine(pt, line){
+  if(line.vertical) return Math.abs(pt[0]-line.xConst);
+  return Math.abs(pt[1] - line.M*pt[0] - line.C) / Math.sqrt(1+line.M*line.M);
+}
+
+// eccentricity of the 2D covariance ellipse of a point cloud
+function eccentricity(points){
+  const n = points.length;
+  let mx=0,my=0;
+  points.forEach(p=>{mx+=p[0]; my+=p[1];});
+  mx/=n; my/=n;
+  let vxx=0, vyy=0, vxy=0;
+  points.forEach(p=>{
+    const dx=p[0]-mx, dy=p[1]-my;
+    vxx+=dx*dx; vyy+=dy*dy; vxy+=dx*dy;
+  });
+  vxx/=n; vyy/=n; vxy/=n;
+  const tr = vxx+vyy, det = vxx*vyy - vxy*vxy;
+  const disc = Math.max(tr*tr/4 - det, 0);
+  const l1 = tr/2 + Math.sqrt(disc);
+  const l2 = Math.max(tr/2 - Math.sqrt(disc), 1e-12);
+  const a = Math.sqrt(l1), b = Math.sqrt(l2);
+  const ecc = Math.sqrt(Math.max(1 - (b*b)/(a*a), 0));
+  return {ecc, a, b};
+}
+
+// ── UI wiring ─────────────────────────────────────────────────────────────
+const els = {
+  hv: document.getElementById('hv'), sigma: document.getElementById('sigma'),
+  theta: document.getElementById('theta'), hg: document.getElementById('hg'),
+  kz1: document.getElementById('kz1'), kz2: document.getElementById('kz2'), kz3: document.getElementById('kz3'),
+  N: document.getElementById('N')
+};
+const fmt = {
+  hv: v=>v.toFixed(0)+' m', sigma: v=>v.toFixed(1)+' dB/m', theta: v=>v.toFixed(0)+'°',
+  hg: v=>v.toFixed(1)+' m', kz1: v=>v.toFixed(3), kz2: v=>v.toFixed(3), kz3: v=>v.toFixed(3),
+  N: v=>v.toFixed(0)
+};
+function syncLabels(){
+  Object.keys(els).forEach(k=>{
+    document.getElementById('v_'+k).textContent = fmt[k](+els[k].value);
+  });
+}
+function params(){
+  return {
+    hv:+els.hv.value, sigmaDb:+els.sigma.value, theta:+els.theta.value, hg:+els.hg.value,
+    kz:[+els.kz1.value, +els.kz2.value, +els.kz3.value], N:+els.N.value
+  };
+}
+
+const COLORS = ['#f56565','#f6ad55','#63b3ed'];
+const M_VALUES = [0, 0.25, 0.6, 1.2, 2.2, 4.5, 9]; // representative polarization channels along the line
+
+// per-baseline simulated data, regenerated on resample / slider change
+let baselineData = []; // {kz, phi0, gvTrue, samples:[[re,im],...], line:{M,C}, ecc, a, b}
+
+function simulateBaselines(){
+  const P = params();
+  const thetaRad = P.theta*Math.PI/180;
+  const sigmaNp = dbToNp(P.sigmaDb);
+  baselineData = P.kz.map(kz=>{
+    const phi0 = kz*P.hg;
+    const gv = gammaV(P.hv, sigmaNp, thetaRad, kz);
+    const trueEndpoints = {
+      pV: totalGamma(gv, 0, phi0),
+      pS: [Math.cos(phi0), Math.sin(phi0)]
+    };
+    const samples = M_VALUES.map(m=>{
+      const truePt = totalGamma(gv, m, phi0);
+      return noisySample(truePt, P.N);
+    });
+    const line = fitLine(samples);
+    const {ecc, a, b} = eccentricity(samples);
+    return {kz, phi0, gv, trueEndpoints, samples, line, ecc, a, b};
+  });
+  return P;
+}
+
+// ── Panel 1: coherence loci ────────────────────────────────────────────────
+function drawLoci(){
+  const traces = [];
+  // unit circle
+  const th = Array.from({length:181}, (_,i)=> -Math.PI + i*2*Math.PI/180);
+  traces.push({x:th.map(Math.cos), y:th.map(Math.sin), mode:'lines', line:{color:'#3a4562', width:1}, hoverinfo:'skip', showlegend:false});
+  traces.push({x:[0], y:[0], mode:'markers', marker:{size:3,color:'#3a4562'}, hoverinfo:'skip', showlegend:false});
+
+  baselineData.forEach((b,i)=>{
+    const col = COLORS[i];
+    // theoretical dashed line segment between pV and pS
+    traces.push({
+      x:[b.trueEndpoints.pV[0], b.trueEndpoints.pS[0]],
+      y:[b.trueEndpoints.pV[1], b.trueEndpoints.pS[1]],
+      mode:'lines', line:{color:col, width:1.6, dash:'dash'},
+      name:'k_z^'+(i+1)+' theoretical locus', legendgroup:'b'+i,
+      hovertemplate:'baseline '+(i+1)+' theoretical locus<extra></extra>'
+    });
+    // noisy samples
+    traces.push({
+      x:b.samples.map(p=>p[0]), y:b.samples.map(p=>p[1]),
+      mode:'markers', marker:{color:col, size:7, symbol:'circle', line:{color:'#0f1420', width:0.6}},
+      name:'baseline '+(i+1)+' (k_z='+b.kz.toFixed(3)+') samples', legendgroup:'b'+i,
+      hovertemplate:'baseline '+(i+1)+'<br>Re=%{x:.3f} Im=%{y:.3f}<extra></extra>'
+    });
+    // pure volume & pure ground markers
+    traces.push({
+      x:[b.trueEndpoints.pV[0]], y:[b.trueEndpoints.pV[1]], mode:'markers',
+      marker:{color:col, size:10, symbol:'diamond', line:{color:'#fff', width:1}},
+      name:'baseline '+(i+1)+' e^{iφ0}γ_V (m=0)', legendgroup:'b'+i, showlegend:false,
+      hovertemplate:'baseline '+(i+1)+' pure volume<extra></extra>'
+    });
+    traces.push({
+      x:[b.trueEndpoints.pS[0]], y:[b.trueEndpoints.pS[1]], mode:'markers',
+      marker:{color:col, size:9, symbol:'triangle-up', line:{color:'#fff', width:1}},
+      name:'baseline '+(i+1)+' e^{iφ0} (m=∞)', legendgroup:'b'+i, showlegend:false,
+      hovertemplate:'baseline '+(i+1)+' pure ground<extra></extra>'
+    });
+  });
+
+  const layout = {
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:11},
+    margin:{l:40,r:10,t:10,b:36},
+    xaxis:{range:[-1.15,1.15], zeroline:false, gridcolor:'#232c42', title:'Re', constrain:'domain'},
+    yaxis:{range:[-1.15,1.15], zeroline:false, gridcolor:'#232c42', title:'Im', scaleanchor:'x', scaleratio:1, constrain:'domain'},
+    legend:{orientation:'h', y:-0.12, font:{size:9.5}},
+    showlegend:true
+  };
+  Plotly.react('plotLoci', traces, layout, {responsive:true, displayModeBar:false});
+}
+
+// ── Panel 2: eccentricity ──────────────────────────────────────────────────
+function drawEcc(){
+  const labels = baselineData.map((b,i)=>'baseline '+(i+1)+'\n(k_z='+b.kz.toFixed(3)+')');
+  const eccs = baselineData.map(b=>b.ecc);
+  const refIdx = eccs.indexOf(Math.max(...eccs));
+  const colors = baselineData.map((b,i)=> i===refIdx ? '#4fd1c5' : '#6473a0');
+  const traces = [{
+    x:labels, y:eccs, type:'bar', marker:{color:colors},
+    text:eccs.map(e=>e.toFixed(3)), textposition:'outside',
+    hovertemplate:'%{x}<br>eccentricity=%{y:.3f}<extra></extra>'
+  }];
+  const layout = {
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:11},
+    margin:{l:40,r:10,t:10,b:60},
+    yaxis:{range:[0,1.05], gridcolor:'#232c42', title:'Ecc = sqrt(1-(b/a)^2)'},
+    xaxis:{tickfont:{size:10}}
+  };
+  Plotly.react('plotEcc', traces, layout, {responsive:true, displayModeBar:false});
+  document.getElementById('refBanner').innerHTML =
+    '<div class="cond good">Selected reference baseline: <b>#'+(refIdx+1)+'</b> (k_z='+baselineData[refIdx].kz.toFixed(3)+
+    ', Ecc='+eccs[refIdx].toFixed(3)+') — the other '+(baselineData.length-1)+' become geometric-constraint baselines.</div>';
+  return refIdx;
+}
+
+// ── Panel 3 & 4: hV sweep cost + estimates ─────────────────────────────────
+function computeCostCurves(P, refIdx){
+  const thetaRad = P.theta*Math.PI/180;
+  const sigmaNp = dbToNp(P.sigmaDb);
+  const hvTrue = P.hv;
+  const hvMin = Math.max(2, 0.3*hvTrue), hvMax = 2.0*hvTrue;
+  const steps = 90;
+  const hvs = Array.from({length:steps+1}, (_,i)=> hvMin + i*(hvMax-hvMin)/steps);
+
+  const nonRef = baselineData.map((b,i)=>i).filter(i=>i!==refIdx);
+  const dualIdx = nonRef.length ? [nonRef[0]] : [];       // Cloude-style: reference + ONE other baseline
+  const allIdx = nonRef;                                    // proposed: reference + ALL other baselines
+  const ref = baselineData[refIdx];
+
+  // "reference-only" residual: matches the candidate volume-only prediction, carried through every
+  // polarization channel m, against ALL of the reference baseline's own noisy observed samples
+  // (an analytic single-baseline RVoG fit — Eq. 25/27/29's first line restricted to Q=1 baseline).
+  function refResidual(hv){
+    const gvCand = gammaV(hv, sigmaNp, thetaRad, ref.kz);
+    let s = 0;
+    M_VALUES.forEach((m,i)=>{
+      const pred = totalGamma(gvCand, m, ref.phi0);
+      const obs = ref.samples[i];
+      const dx = pred[0]-obs[0], dy = pred[1]-obs[1];
+      s += dx*dx+dy*dy;
+    });
+    return s;
+  }
+  // geometric-constraint cost: perpendicular distance of the predicted pure-volume point (under each
+  // OTHER baseline's own kz) to that baseline's own fitted line (Eq. 19-24).
+  function lineCost(idxList, hv){
+    let s = 0;
+    idxList.forEach(i=>{
+      const b = baselineData[i];
+      const gvCand = gammaV(hv, sigmaNp, thetaRad, b.kz);
+      const predicted = totalGamma(gvCand, 0, b.phi0);
+      const d = distToLine(predicted, b.line);
+      s += d*d;
+    });
+    return s;
+  }
+
+  const curveRef = hvs.map(refResidual);
+  const curveDual = dualIdx.length ? hvs.map(hv=>refResidual(hv) + lineCost(dualIdx, hv)) : null;
+  const curveAll = allIdx.length ? hvs.map(hv=>refResidual(hv) + lineCost(allIdx, hv)) : null;
+
+  function argmin(curve){
+    let bi=0, bv=Infinity;
+    curve.forEach((v,i)=>{ if(v<bv){bv=v; bi=i;} });
+    return hvs[bi];
+  }
+  return {
+    hvs, curveRef, curveDual, curveAll,
+    estRef: argmin(curveRef),
+    estDual: curveDual ? argmin(curveDual) : null,
+    estAll: curveAll ? argmin(curveAll) : null,
+    hvTrue
+  };
+}
+
+function normalize(curve){
+  const mx = Math.max(...curve, 1e-9);
+  return curve.map(v=>v/mx);
+}
+
+let lastResult = null;
+function drawCostAndEstimates(P, refIdx){
+  const R = computeCostCurves(P, refIdx);
+  lastResult = R;
+  const traces = [
+    {x:R.hvs, y:normalize(R.curveRef), mode:'lines', line:{color:'#f56565', width:2}, name:'reference baseline only'},
+  ];
+  if(R.curveDual) traces.push({x:R.hvs, y:normalize(R.curveDual), mode:'lines', line:{color:'#f6ad55', width:2}, name:'dual-baseline (Cloude-style)'});
+  if(R.curveAll) traces.push({x:R.hvs, y:normalize(R.curveAll), mode:'lines', line:{color:'#4fd1c5', width:2.6}, name:'proposed: joint multi-baseline'});
+  traces.push({x:[R.hvTrue,R.hvTrue], y:[0,1], mode:'lines', line:{color:'#e7ecf5', width:1.4, dash:'dot'}, name:'true h_V'});
+
+  const layout = {
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:11},
+    margin:{l:44,r:10,t:10,b:40},
+    xaxis:{title:'candidate forest height h_V′ (m)', gridcolor:'#232c42'},
+    yaxis:{title:'normalized cost', gridcolor:'#232c42', range:[0,1.05]},
+    legend:{orientation:'h', y:-0.22, font:{size:9.5}}
+  };
+  Plotly.react('plotCost', traces, layout, {responsive:true, displayModeBar:false});
+
+  // panel 4: bar chart of estimates
+  const labels = ['Reference baseline\nonly'];
+  const values = [R.estRef];
+  const colors = ['#f56565'];
+  if(R.estDual!==null){ labels.push('Dual-baseline\n(Cloude-style)'); values.push(R.estDual); colors.push('#f6ad55'); }
+  if(R.estAll!==null){ labels.push('Proposed\njoint multi-baseline'); values.push(R.estAll); colors.push('#4fd1c5'); }
+
+  const barTraces = [
+    {x:labels, y:values, type:'bar', marker:{color:colors},
+     text:values.map(v=>v.toFixed(1)+' m'), textposition:'outside',
+     hovertemplate:'%{x}<br>estimated h_V=%{y:.2f} m<extra></extra>'}
+  ];
+  const barLayout = {
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:11},
+    margin:{l:44,r:10,t:10,b:50},
+    yaxis:{title:'estimated h_V (m)', gridcolor:'#232c42'},
+    shapes:[{type:'line', x0:-0.5, x1:labels.length-0.5, y0:R.hvTrue, y1:R.hvTrue, line:{color:'#e7ecf5', width:1.4, dash:'dot'}}],
+    annotations:[{x:-0.48, y:R.hvTrue, xanchor:'left', yanchor:'bottom', text:'true h_V = '+R.hvTrue.toFixed(0)+' m', showarrow:false, font:{size:10, color:'#e7ecf5'}}]
+  };
+  Plotly.react('plotEstBar', barTraces, barLayout, {responsive:true, displayModeBar:false});
+
+  // readout
+  const errRef = R.estRef - R.hvTrue;
+  const errDual = R.estDual!==null ? R.estDual - R.hvTrue : null;
+  const errAll = R.estAll!==null ? R.estAll - R.hvTrue : null;
+  document.getElementById('readout').innerHTML =
+    '<div class="row"><span>True h_V</span><b>'+R.hvTrue.toFixed(1)+' m</b></div>'+
+    '<div class="row"><span>Reference-only error</span><b>'+(errRef>=0?'+':'')+errRef.toFixed(1)+' m</b></div>'+
+    (errDual!==null ? '<div class="row"><span>Dual-baseline error</span><b>'+(errDual>=0?'+':'')+errDual.toFixed(1)+' m</b></div>' : '')+
+    (errAll!==null ? '<div class="row"><span>Proposed method error</span><b>'+(errAll>=0?'+':'')+errAll.toFixed(1)+' m</b></div>' : '');
+}
+
+// ── Panel 5: validation results (real reported numbers) ────────────────────
+function drawValidation(){
+  const sites = ['Mabounie\n(tropical rainforest)', 'Krycklan\n(coniferous forest)'];
+  const trad = [7.73, 5.15];
+  const proposed = [4.76, 4.28];
+  const improve = ['39%', '17%'];
+  const traces = [
+    {x:sites, y:trad, name:'Traditional (optimal single baseline)', type:'bar', marker:{color:'#f56565'},
+     text:trad.map(v=>v.toFixed(2)+' m'), textposition:'outside'},
+    {x:sites, y:proposed, name:'Proposed (analytic + geometric multi-baseline)', type:'bar', marker:{color:'#4fd1c5'},
+     text:proposed.map((v,i)=>v.toFixed(2)+' m  (−'+improve[i]+')'), textposition:'outside'}
+  ];
+  const layout = {
+    paper_bgcolor:'#161d2e', plot_bgcolor:'#161d2e', font:{color:'#e7ecf5', size:11},
+    margin:{l:44,r:10,t:10,b:50}, barmode:'group',
+    yaxis:{title:'RMSE vs. LiDAR (m)', gridcolor:'#232c42', range:[0,9]},
+    legend:{orientation:'h', y:-0.25, font:{size:10}}
+  };
+  Plotly.react('plotValidation', traces, layout, {responsive:true, displayModeBar:false});
+  document.getElementById('validationNotes').innerHTML =
+    '<span><span class="sw" style="background:#f56565"></span>Mabounie: R²=0.59 → underestimates tall canopy (long/high-k_z baseline saturates)</span>'+
+    '<span><span class="sw" style="background:#4fd1c5"></span>Krycklan: R²=0.42 → 0.45, both slightly overestimate at far range (small k_z, more noise-sensitive)</span>';
+}
+
+// ── Orchestration ───────────────────────────────────────────────────────────
+function redrawAll(){
+  syncLabels();
+  const P = simulateBaselines();
+  drawLoci();
+  const refIdx = drawEcc();
+  drawCostAndEstimates(P, refIdx);
+  drawValidation();
+}
+Object.values(els).forEach(el => el.addEventListener('input', redrawAll));
+document.getElementById('resample').addEventListener('click', redrawAll);
+
+const presets = {
+  mabounie: {hv:35, sigma:4.0, theta:35, hg:2, kz1:0.030, kz2:0.070, kz3:0.095, N:25},
+  krycklan: {hv:20, sigma:2.0, theta:35, hg:1, kz1:0.080, kz2:0.110, kz3:0.155, N:25},
+  custom:   {hv:28, sigma:3.0, theta:35, hg:3, kz1:0.030, kz2:0.070, kz3:0.095, N:25}
+};
+document.querySelectorAll('#presetButtons button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#presetButtons button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const p = presets[btn.dataset.preset];
+    Object.keys(p).forEach(k=>{ if(els[k]) els[k].value = p[k]; });
+    redrawAll();
+  });
+});
+document.querySelector('#presetButtons button[data-preset="mabounie"]').classList.add('active');
+
+redrawAll();
+
+let resizeTimer;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(redrawAll, 150);
+});
+</script>
+</body>
+</html>
