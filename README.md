@@ -9,6 +9,25 @@ browser via plain JavaScript, numerically verified against the source paper's eq
 
 ## Dashboards
 
+### [Cloude-Pottier Decomposition — Quad-Pol vs. Dual-Pol SAR](cloude-pottier-decomposition.html)
+> S.R. Cloude, E. Pottier, *IEEE Transactions on Geoscience and Remote Sensing* 35(1), 68-78, 1997.
+> K. Ji, Y. Wu, *Remote Sensing* 7(6), 7447-7470, 2015.
+
+Reconstructs the classical Cloude-Pottier H/&alpha; eigen-decomposition (quad-pol [T3], entropy
+in log base 3) side-by-side with Ji &amp; Wu's modified decomposition for the three dual-pol
+reductions (HH-VV, HH-HV, HV-VV; log base 2), including each mode's own closed-form
+feasible-region boundary. Slider-driven mixtures of the three canonical scattering mechanisms
+plus diffuse noise generate synthetic N-look speckle that feeds all four representations from
+the *same* simulated looks, so the H-&alpha; clouds, the numeric comparison, and a synthetic
+five-patch land-cover scene are all mutually consistent. Demonstrates live the paper's central
+result: HH-HV and HV-VV collapse the three canonical mechanisms onto (or near) a single
+degenerate point — unlike HH-VV, which keeps them separated exactly as full-pol does — and
+reproduces the qualitative gap in their reported scattering-mechanism retention ratio
+(HH-VV &asymp; 68% vs. HH-HV/HV-VV &asymp; 29-30% on real data, Table 3) on a synthetic scene built
+for this dashboard. Unlike the other dashboards here, this one reconstructs single-image
+polarimetric classification rather than interferometric coherence — included as the
+scattering-mechanism foundation the PolInSAR methods below build on.
+
 ### [Single-Baseline Polarimetric SAR Interferometry](papathanassiou-cloude-2001.html)
 > K.P. Papathanassiou, S.R. Cloude, *IEEE Transactions on Geoscience and Remote Sensing*,
 > vol. 39, no. 11, Nov. 2001.

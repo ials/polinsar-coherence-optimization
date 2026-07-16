@@ -31,11 +31,19 @@
 
 <header>
   <h1>PolInSAR Dashboards</h1>
-  <p>Interactive, client-side reconstructions of Polarimetric SAR Interferometry papers and models — coherence optimization, temporal decorrelation, and forest structure inversion. Every plot is computed live in your browser; nothing is precomputed or uploaded.</p>
+  <p>Interactive, client-side reconstructions of Polarimetric SAR Interferometry papers and models — coherence optimization, temporal decorrelation, forest structure inversion, and the underlying scattering-mechanism decompositions PolInSAR builds on. Every plot is computed live in your browser; nothing is precomputed or uploaded.</p>
 </header>
 
 <main>
   <div class="cards">
+
+    <a class="card" href="./cloude-pottier-decomposition.html">
+      <span class="arrow">→</span>
+      <span class="tag">Scattering-mechanism classification</span>
+      <h2>Cloude-Pottier Decomposition — Quad-Pol vs. Dual-Pol SAR</h2>
+      <p>Side-by-side reconstruction of the classical Cloude &amp; Pottier (1997) H/&alpha; eigen-decomposition for quad-pol [T3] data and Ji &amp; Wu's (2015) modified decomposition for dual-pol SAR (HH-VV, HH-HV, HV-VV). Slider-driven synthetic scattering mixtures (surface + dipole + dihedral + diffuse noise, N-look speckle) feed all four representations from the same simulated looks, showing live why HH-HV and HV-VV collapse the three canonical mechanisms onto (or near) a single degenerate point while HH-VV keeps them separated — and reproducing the paper's scattering-mechanism retention-ratio finding on a synthetic five-patch scene.</p>
+      <p class="cite">S.R. Cloude, E. Pottier, IEEE TGRS 35(1), 1997. K. Ji, Y. Wu, Remote Sens. 7(6), 7447-7470, 2015.</p>
+    </a>
 
     <a class="card" href="./papathanassiou-cloude-2001.html">
       <span class="arrow">→</span>
